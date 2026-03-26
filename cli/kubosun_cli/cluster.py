@@ -140,6 +140,65 @@ def delete_resource(kind: str, name: str, namespace: str | None = None) -> bool:
         return False
 
 
+def get_cluster_info() -> dict:
+    """Get cluster metadata: version, platform, region, topology, nodes."""
+    info: dict = {}
+
+    # API server
+    try:
+        info["api_server"] = get_api_server().replace("https://", "")
+    except Exception:
+        info["api_server"] = "unknown"
+
+    # OpenShift version
+    try:
+        info["version"] = run_oc([
+            "get", "clusterversion", "version",
+            "-o", "jsonpath={.status.desired.version}",
+        ])
+    except Exception:
+        info["version"] = ""
+
+    # Infrastructure: platform, region, topology
+    try:
+        infra_json = run_oc(["get", "infrastructure", "cluster", "-o", "json"])
+        infra = json.loads(infra_json)
+        status = infra.get("status", {})
+        info["platform"] = status.get("platform", "")
+        topology = status.get("controlPlaneTopology", "")
+        info["topology"] = "ROSA" if topology == "External" else topology
+        platform_status = status.get("platformStatus", {})
+        for cloud in ["aws", "gcp", "azure"]:
+            region = platform_status.get(cloud, {}).get("region", "")
+            if region:
+                info["region"] = region
+                break
+        if "region" not in info:
+            info["region"] = ""
+    except Exception:
+        info["platform"] = ""
+        info["region"] = ""
+        info["topology"] = ""
+
+    # Node count
+    try:
+        nodes_output = run_oc(["get", "nodes", "--no-headers"])
+        info["node_count"] = len(nodes_output.strip().splitlines()) if nodes_output.strip() else 0
+    except Exception:
+        info["node_count"] = 0
+
+    # Console URL
+    try:
+        info["console_url"] = run_oc([
+            "get", "console", "cluster",
+            "-o", "jsonpath={.status.consoleURL}",
+        ])
+    except Exception:
+        info["console_url"] = ""
+
+    return info
+
+
 def get_all_namespaces() -> list[str]:
     """Get all namespace names on the cluster."""
     output = run_oc(["get", "namespaces", "-o", "jsonpath={.items[*].metadata.name}"])

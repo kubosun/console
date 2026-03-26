@@ -20,6 +20,34 @@ REPO_URL = "https://github.com/kubosun/console.git"
 REGISTRY = "image-registry.openshift-image-registry.svc:5000"
 
 
+def print_cluster_info() -> None:
+    """Print cluster context info as a compact banner."""
+    info = cluster.get_cluster_info()
+    parts = []
+    if info.get("version"):
+        parts.append(f"OpenShift {info['version']}")
+    if info.get("platform"):
+        region = f" ({info['region']})" if info.get("region") else ""
+        parts.append(f"{info['platform']}{region}")
+    if info.get("topology"):
+        parts.append(info["topology"])
+    if info.get("node_count"):
+        n = info["node_count"]
+        parts.append(f"{n} node{'s' if n != 1 else ''}")
+
+    if parts:
+        line1 = " | ".join(parts)
+        line2 = info.get("api_server", "")
+        from rich.panel import Panel
+
+        console.print(Panel(
+            f"{line1}\n[dim]{line2}[/dim]",
+            title="[bold]Cluster[/bold]",
+            border_style="cyan",
+            expand=False,
+        ))
+
+
 @app.command()
 def setup(
     namespace: str = typer.Option("kubosun", help="Target namespace"),
@@ -31,7 +59,8 @@ def setup(
     # 1. Check login
     user = cluster.check_login()
     api_server = cluster.get_api_server()
-    console.print(f"Logged in as [bold]{user}[/bold] on [bold]{api_server}[/bold]")
+    console.print(f"Logged in as [bold]{user}[/bold]")
+    print_cluster_info()
 
     # 2. Get cluster domain for OAuth
     apps_domain = cluster.get_apps_domain()
@@ -153,6 +182,7 @@ def deploy(
 
     user = cluster.check_login()
     console.print(f"Logged in as [bold]{user}[/bold]")
+    print_cluster_info()
     cluster.run_oc(["project", namespace])
 
     # Trigger builds
@@ -201,7 +231,8 @@ def status(
     """Check deployment status — pods, builds, route, health."""
 
     user = cluster.check_login()
-    console.print(f"Logged in as [bold]{user}[/bold]\n")
+    console.print(f"Logged in as [bold]{user}[/bold]")
+    print_cluster_info()
 
     # Route
     try:
@@ -264,6 +295,7 @@ def destroy(
 
     user = cluster.check_login()
     console.print(f"Logged in as [bold]{user}[/bold]")
+    print_cluster_info()
 
     steps = [
         ("Route", "route", "kubosun", namespace),
@@ -370,6 +402,7 @@ def add_user(
 
     user = cluster.check_login()
     console.print(f"Logged in as [bold]{user}[/bold]")
+    print_cluster_info()
 
     # Validate role
     valid_roles = ["view", "edit", "admin"]
@@ -414,6 +447,7 @@ def remove_user(
 
     user = cluster.check_login()
     console.print(f"Logged in as [bold]{user}[/bold]")
+    print_cluster_info()
 
     # Find all bindings
     with console.status(f"Finding role bindings for {username}..."):
