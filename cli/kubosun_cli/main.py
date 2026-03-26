@@ -64,7 +64,7 @@ def setup(
 
     # 2. Get cluster domain for OAuth
     apps_domain = cluster.get_apps_domain()
-    oauth_host = api_server.replace("https://api.", "oauth.").rstrip("/")
+    oauth_host = api_server.replace("https://api.", "https://oauth.").rstrip("/")
     route_host = f"kubosun-{namespace}.{apps_domain}"
     route_url = f"https://{route_host}"
     console.print(f"Apps domain: [cyan]{apps_domain}[/cyan]")
@@ -97,6 +97,7 @@ def setup(
             anthropic_key=anthropic_key,
             oauth_issuer=oauth_host,
             oauth_client_secret=oauth_secret,
+            k8s_api_server=api_server,
         )
         cluster.apply_manifest(secret_yaml)
         console.print("[green]Created[/green] secrets")

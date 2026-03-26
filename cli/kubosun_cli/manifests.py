@@ -86,6 +86,7 @@ def k8s_secret(
     anthropic_key: str,
     oauth_issuer: str,
     oauth_client_secret: str,
+    k8s_api_server: str = "",
 ) -> str:
     session_secret = secrets.token_hex(32)
     return f"""\
@@ -102,6 +103,7 @@ stringData:
   KUBOSUN_OAUTH_CLIENT_SECRET: "{oauth_client_secret}"
   KUBOSUN_OAUTH_ISSUER_URL: "{oauth_issuer}"
   KUBOSUN_OAUTH_REDIRECT_URI: "placeholder"
+  KUBOSUN_K8S_API_SERVER: "{k8s_api_server}"
 """
 
 
