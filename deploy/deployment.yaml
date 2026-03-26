@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubosun-backend
+  labels:
+    app.kubernetes.io/name: kubosun
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubosun
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubosun
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: kubosun
+      containers:
+        - name: backend
+          image: kubosun/backend:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: KUBOSUN_K8S_IN_CLUSTER
+              value: "true"
+            - name: KUBOSUN_OAUTH_ENABLED
+              value: "true"
+            - name: KUBOSUN_OAUTH_PROVIDER
+              value: "openshift"
+            - name: KUBOSUN_CORS_ORIGINS
+              value: '["https://kubosun.example.com"]'
+          envFrom:
+            - secretRef:
+                name: kubosun-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubosun-frontend
+  labels:
+    app.kubernetes.io/name: kubosun
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubosun
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubosun
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: kubosun/frontend:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: BACKEND_URL
+              value: "http://kubosun-backend:8000"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
