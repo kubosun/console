@@ -1,130 +1,72 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Activity,
-  Bell,
-  Box,
   ChevronDown,
-  Container,
-  FileText,
-  FolderOpen,
-  Globe,
-  HardDrive,
   LayoutDashboard,
-  Lock,
   LogOut,
-  Monitor,
-  Network,
-  Package,
+  Moon,
   PanelLeft,
-  Split,
   PanelLeftClose,
-  Rocket,
-  Server,
-  Settings,
+  Search,
+  Star,
+  Sun,
   User,
+  X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/hooks/useUser';
+import {
+  useTheme,
+  usePinnedNavItems,
+  useSidebarOpen,
+  useExpandedSections,
+} from '@/stores/preferences-store';
+import { NAV_SECTIONS, getAllNavItems, findNavItemById } from './nav-sections';
+import type { NavItem } from './nav-sections';
 import { NamespaceSelector } from './NamespaceSelector';
-
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-interface NavSection {
-  id: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  items: NavItem[];
-}
-
-const NAV_SECTIONS: NavSection[] = [
-  {
-    id: 'cluster',
-    label: 'Cluster',
-    icon: Server,
-    items: [
-      { id: 'nodes', label: 'Nodes', href: '/resources/core/v1/nodes', icon: Monitor },
-      { id: 'namespaces', label: 'Namespaces', href: '/resources/core/v1/namespaces', icon: FolderOpen },
-    ],
-  },
-  {
-    id: 'workloads',
-    label: 'Workloads',
-    icon: Box,
-    items: [
-      { id: 'pods', label: 'Pods', href: '/resources/core/v1/pods', icon: Container },
-      { id: 'deployments', label: 'Deployments', href: '/resources/apps/v1/deployments', icon: Rocket },
-    ],
-  },
-  {
-    id: 'networking',
-    label: 'Networking',
-    icon: Network,
-    items: [
-      { id: 'services', label: 'Services', href: '/resources/core/v1/services', icon: Globe },
-      { id: 'ingresses', label: 'Ingresses', href: '/resources/networking.k8s.io/v1/ingresses', icon: Network },
-      { id: 'routes', label: 'Routes', href: '/resources/route.openshift.io/v1/routes', icon: Split },
-    ],
-  },
-  {
-    id: 'configuration',
-    label: 'Configuration',
-    icon: Settings,
-    items: [
-      { id: 'configmaps', label: 'ConfigMaps', href: '/resources/core/v1/configmaps', icon: FileText },
-      { id: 'secrets', label: 'Secrets', href: '/resources/core/v1/secrets', icon: Lock },
-    ],
-  },
-  {
-    id: 'observe',
-    label: 'Observe',
-    icon: Activity,
-    items: [
-      { id: 'events', label: 'Events', href: '/events', icon: Activity },
-      { id: 'alerts', label: 'Alerts', href: '/alerts', icon: Bell },
-    ],
-  },
-  {
-    id: 'storage',
-    label: 'Storage',
-    icon: HardDrive,
-    items: [
-      { id: 'pvcs', label: 'PVCs', href: '/resources/core/v1/persistentvolumeclaims', icon: HardDrive },
-    ],
-  },
-  {
-    id: 'helm',
-    label: 'Helm',
-    icon: Package,
-    items: [
-      { id: 'releases', label: 'Releases', href: '/helm', icon: Package },
-    ],
-  },
-];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(NAV_SECTIONS.map((s) => s.id)),
+  const [isSidebarOpen, setSidebarOpen] = useSidebarOpen();
+  const [expandedSectionsArr, setExpandedSections] = useExpandedSections();
+  const [pinnedItems, togglePinned] = usePinnedNavItems();
+  const [navSearch, setNavSearch] = useState('');
+
+  const expandedSections = useMemo(
+    () => new Set(expandedSectionsArr),
+    [expandedSectionsArr],
   );
 
   const toggleSection = (id: string) => {
-    setExpandedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setExpandedSections(
+      expandedSections.has(id)
+        ? expandedSectionsArr.filter((s) => s !== id)
+        : [...expandedSectionsArr, id],
+    );
   };
+
+  const allNavItems = useMemo(() => getAllNavItems(), []);
+
+  const filteredItems = useMemo(() => {
+    if (!navSearch) return null;
+    const q = navSearch.toLowerCase();
+    return allNavItems.filter((item) =>
+      item.label.toLowerCase().includes(q),
+    );
+  }, [navSearch, allNavItems]);
+
+  const resolvedPins = useMemo(
+    () =>
+      pinnedItems
+        .map((id) => findNavItemById(id))
+        .filter((item): item is NonNullable<typeof item> => !!item),
+    [pinnedItems],
+  );
+
+  const isSearching = navSearch.length > 0;
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -145,65 +87,136 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-2">
-          {/* Overview */}
-          <Link
-            href="/"
-            className={cn(
-              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors mb-1',
-              pathname === '/'
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+          {/* Search */}
+          <div className="relative mb-2">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
+              className="w-full rounded-md border bg-background pl-8 pr-7 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            {navSearch && (
+              <button
+                onClick={() => setNavSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             )}
-          >
-            <LayoutDashboard className="h-4 w-4 shrink-0" />
-            Overview
-          </Link>
+          </div>
 
-          {/* Sections */}
-          {NAV_SECTIONS.map((section) => {
-            const SectionIcon = section.icon;
-            const isExpanded = expandedSections.has(section.id);
-            return (
-              <div key={section.id} className="mt-1">
-                <button
-                  onClick={() => toggleSection(section.id)}
-                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
-                >
-                  <SectionIcon className="h-4 w-4 shrink-0" />
-                  <span className="flex-1 text-left">{section.label}</span>
-                  <ChevronDown
-                    className={cn(
-                      'h-3 w-3 transition-transform',
-                      !isExpanded && '-rotate-90',
-                    )}
-                  />
-                </button>
-                {isExpanded && (
-                  <div className="ml-4 space-y-0.5">
-                    {section.items.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = pathname.startsWith(item.href);
-                      return (
-                        <Link
-                          key={item.id}
-                          href={item.href}
-                          className={cn(
-                            'flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors',
-                            isActive
-                              ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                              : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
-                          )}
-                        >
-                          <Icon className="h-3.5 w-3.5 shrink-0" />
-                          {item.label}
-                        </Link>
-                      );
-                    })}
+          {isSearching ? (
+            /* Search results */
+            <div className="space-y-0.5">
+              {filteredItems && filteredItems.length > 0 ? (
+                filteredItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      onClick={() => setNavSearch('')}
+                      className={cn(
+                        'flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors',
+                        isActive
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                          : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {item.sectionLabel}
+                      </span>
+                    </Link>
+                  );
+                })
+              ) : (
+                <p className="px-3 py-2 text-xs text-muted-foreground">
+                  No results
+                </p>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Favorites */}
+              {resolvedPins.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 px-3 py-1 mb-0.5">
+                    <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Favorites
+                    </span>
                   </div>
+                  <div className="space-y-0.5 mb-1">
+                    {resolvedPins.map((item) => (
+                      <NavItemRow
+                        key={item.id}
+                        item={item}
+                        isActive={pathname.startsWith(item.href)}
+                        isPinned
+                        onTogglePin={() => togglePinned(item.id)}
+                      />
+                    ))}
+                  </div>
+                  <div className="border-b mb-1" />
+                </>
+              )}
+
+              {/* Overview */}
+              <Link
+                href="/"
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors mb-1',
+                  pathname === '/'
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
                 )}
-              </div>
-            );
-          })}
+              >
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                Overview
+              </Link>
+
+              {/* Sections */}
+              {NAV_SECTIONS.map((section) => {
+                const SectionIcon = section.icon;
+                const isExpanded = expandedSections.has(section.id);
+                return (
+                  <div key={section.id} className="mt-1">
+                    <button
+                      onClick={() => toggleSection(section.id)}
+                      className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
+                    >
+                      <SectionIcon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 text-left">{section.label}</span>
+                      <ChevronDown
+                        className={cn(
+                          'h-3 w-3 transition-transform',
+                          !isExpanded && '-rotate-90',
+                        )}
+                      />
+                    </button>
+                    {isExpanded && (
+                      <div className="ml-4 space-y-0.5">
+                        {section.items.map((item) => (
+                          <NavItemRow
+                            key={item.id}
+                            item={item}
+                            isActive={pathname.startsWith(item.href)}
+                            isPinned={pinnedItems.includes(item.id)}
+                            onTogglePin={() => togglePinned(item.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </nav>
       </aside>
 
@@ -212,7 +225,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Header */}
         <header className="flex h-14 items-center gap-4 border-b px-4">
           <button
-            onClick={() => setIsSidebarOpen((prev) => !prev)}
+            onClick={() => setSidebarOpen(!isSidebarOpen)}
             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             aria-label="Toggle sidebar"
           >
@@ -224,15 +237,89 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <NamespaceSelector />
           <div className="flex-1" />
+          <ThemeToggle />
           <UserMenu />
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
+  );
+}
+
+function NavItemRow({
+  item,
+  isActive,
+  isPinned,
+  onTogglePin,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  isPinned: boolean;
+  onTogglePin: () => void;
+}) {
+  const Icon = item.icon;
+  return (
+    <div className="group flex items-center">
+      <Link
+        href={item.href}
+        className={cn(
+          'flex flex-1 items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors',
+          isActive
+            ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+            : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+        )}
+      >
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        {item.label}
+      </Link>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onTogglePin();
+        }}
+        className={cn(
+          'shrink-0 rounded p-1 transition-colors',
+          isPinned
+            ? 'text-yellow-500 hover:text-yellow-600'
+            : 'text-transparent group-hover:text-muted-foreground hover:!text-yellow-500',
+        )}
+        aria-label={isPinned ? `Unpin ${item.label}` : `Pin ${item.label}`}
+      >
+        <Star
+          className={cn('h-3 w-3', isPinned && 'fill-current')}
+        />
+      </button>
+    </div>
+  );
+}
+
+function ThemeToggle() {
+  const [theme, setTheme] = useTheme();
+
+  const effectiveTheme =
+    theme === 'system'
+      ? typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+      : theme;
+
+  const toggle = () => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark');
+
+  return (
+    <button
+      onClick={toggle}
+      className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+      aria-label="Toggle theme"
+    >
+      {effectiveTheme === 'dark' ? (
+        <Sun className="h-4 w-4" />
+      ) : (
+        <Moon className="h-4 w-4" />
+      )}
+    </button>
   );
 }
 
