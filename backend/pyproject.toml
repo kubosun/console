@@ -32,3 +32,7 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"app/services/ai_tools.py" = ["E501"]  # Tool descriptions are naturally long
+"app/routers/ai.py" = ["E501"]  # SSE formatting lines

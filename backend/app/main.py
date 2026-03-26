@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health
+from app.routers import ai, health, k8s, resources, watch
 
 app = FastAPI(
     title="Kubosun Backend",
@@ -19,3 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(k8s.router)
+app.include_router(resources.router)
+app.include_router(watch.router)
+app.include_router(ai.router)
