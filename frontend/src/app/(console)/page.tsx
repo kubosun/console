@@ -1,6 +1,6 @@
 'use client';
 
-import { Container, Rocket, Globe, FolderOpen, Monitor } from 'lucide-react';
+import { Container, Rocket, Globe, FolderOpen } from 'lucide-react';
 import { useClusterSummary } from '@/hooks/useClusterSummary';
 import { ClusterInfoCard } from '@/components/dashboard/ClusterInfoCard';
 import { ResourceCountCard } from '@/components/dashboard/ResourceCountCard';
