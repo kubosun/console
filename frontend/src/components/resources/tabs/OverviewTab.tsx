@@ -2,6 +2,8 @@
 
 import type { K8sResource } from '@/lib/k8s/types';
 import { formatAge, getResourceStatus } from '@/lib/k8s/resource-utils';
+import { PodMetricsPanel } from '@/components/resources/PodMetricsPanel';
+import { NodeMetricsPanel } from '@/components/resources/NodeMetricsPanel';
 
 interface OverviewTabProps {
   resource: K8sResource;
@@ -9,6 +11,8 @@ interface OverviewTabProps {
 
 export function OverviewTab({ resource }: OverviewTabProps) {
   const status = getResourceStatus(resource);
+  const isPod = resource.kind === 'Pod';
+  const isNode = resource.kind === 'Node';
   const labels = resource.metadata.labels ?? {};
   const annotations = resource.metadata.annotations ?? {};
 
@@ -27,6 +31,20 @@ export function OverviewTab({ resource }: OverviewTabProps) {
         <Field label="Status" value={status.label} />
         <Field label="Resource Version" value={resource.metadata.resourceVersion} />
       </Section>
+
+      {/* Resource Metrics */}
+      {isPod && resource.metadata.namespace && (
+        <PodMetricsPanel
+          name={resource.metadata.name}
+          namespace={resource.metadata.namespace}
+        />
+      )}
+      {isNode && (
+        <NodeMetricsPanel
+          name={resource.metadata.name}
+          resource={resource}
+        />
+      )}
 
       {/* Labels */}
       {Object.keys(labels).length > 0 && (

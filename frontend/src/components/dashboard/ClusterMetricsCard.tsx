@@ -1,10 +1,14 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Cpu, MemoryStick } from 'lucide-react';
 import { useNodeMetrics } from '@/hooks/useResourceMetrics';
 import type { NodeMetricsList } from '@/hooks/useResourceMetrics';
+import { usePrometheusRangeQuery } from '@/hooks/usePrometheusQuery';
 import { parseK8sQuantity, formatCPU, formatMemory, usagePercent } from '@/lib/k8s/metrics-utils';
 import { cn } from '@/lib/utils';
+import { MetricsChart } from './MetricsChart';
+import type { DataPoint } from './MetricsChart';
 
 interface ClusterMetricsCardProps {
   capacity: {
@@ -15,8 +19,45 @@ interface ClusterMetricsCardProps {
   };
 }
 
+function useTimeRange() {
+  return useMemo(() => {
+    const now = Math.floor(Date.now() / 1000);
+    const oneHourAgo = now - 3600;
+    return {
+      start: String(oneHourAgo),
+      end: String(now),
+      step: '60',
+    };
+  }, []);
+}
+
+function prometheusToDataPoints(data: unknown): DataPoint[] {
+  const result = data as {
+    data?: { result?: Array<{ values?: [number, string][] }> };
+  };
+  const series = result?.data?.result?.[0]?.values;
+  if (!series) return [];
+  return series.map(([timestamp, value]) => ({
+    time: timestamp,
+    value: parseFloat(value),
+  }));
+}
+
 export function ClusterMetricsCard({ capacity }: ClusterMetricsCardProps) {
   const { data, isLoading, isError } = useNodeMetrics();
+  const { start, end, step } = useTimeRange();
+
+  const cpuQuery = 'sum(rate(node_cpu_seconds_total{mode!="idle"}[2m])) * 1000';
+  const memQuery = 'sum(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)';
+
+  const { data: cpuHistory } = usePrometheusRangeQuery(cpuQuery, start, end, step);
+  const { data: memHistory } = usePrometheusRangeQuery(memQuery, start, end, step);
+
+  const cpuChartData = useMemo(() => prometheusToDataPoints(cpuHistory), [cpuHistory]);
+  const memChartData = useMemo(() => {
+    const points = prometheusToDataPoints(memHistory);
+    return points.map((p) => ({ ...p, value: p.value / (1024 ** 3) }));
+  }, [memHistory]);
 
   const allocatableCPU = parseFloat(capacity.allocatableCPU);
   const allocatableMemory = parseFloat(capacity.allocatableMemory);
@@ -63,7 +104,7 @@ export function ClusterMetricsCard({ capacity }: ClusterMetricsCardProps) {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         {/* CPU */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
@@ -77,7 +118,7 @@ export function ClusterMetricsCard({ capacity }: ClusterMetricsCardProps) {
                 : `${formatCPU(usedCPU)} / ${formatCPU(allocatableCPU)}`}
             </span>
           </div>
-          <div className="h-2 rounded-full bg-muted overflow-hidden">
+          <div className="h-2 rounded-full bg-muted overflow-hidden mb-1">
             <div
               className={cn(
                 'h-full rounded-full transition-all',
@@ -87,7 +128,13 @@ export function ClusterMetricsCard({ capacity }: ClusterMetricsCardProps) {
             />
           </div>
           {!isLoading && (
-            <p className="text-xs text-muted-foreground mt-1">{cpuPercent}% used</p>
+            <p className="text-xs text-muted-foreground mb-3">{cpuPercent}% used</p>
+          )}
+          {cpuChartData.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Last hour (millicores)</p>
+              <MetricsChart data={cpuChartData} color="#3b82f6" unit="m" height={140} />
+            </div>
           )}
         </div>
 
@@ -104,7 +151,7 @@ export function ClusterMetricsCard({ capacity }: ClusterMetricsCardProps) {
                 : `${formatMemory(usedMemory)} / ${formatMemory(allocatableMemory)}`}
             </span>
           </div>
-          <div className="h-2 rounded-full bg-muted overflow-hidden">
+          <div className="h-2 rounded-full bg-muted overflow-hidden mb-1">
             <div
               className={cn(
                 'h-full rounded-full transition-all',
@@ -114,7 +161,13 @@ export function ClusterMetricsCard({ capacity }: ClusterMetricsCardProps) {
             />
           </div>
           {!isLoading && (
-            <p className="text-xs text-muted-foreground mt-1">{memPercent}% used</p>
+            <p className="text-xs text-muted-foreground mb-3">{memPercent}% used</p>
+          )}
+          {memChartData.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Last hour (GiB)</p>
+              <MetricsChart data={memChartData} color="#a855f7" unit=" GiB" height={140} />
+            </div>
           )}
         </div>
       </div>

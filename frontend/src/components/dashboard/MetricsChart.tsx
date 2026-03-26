@@ -1,5 +1,6 @@
 'use client';
 
+import { useId } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -10,10 +11,10 @@ import {
   CartesianGrid,
 } from 'recharts';
 
-interface DataPoint {
+export interface DataPoint {
   time: number;
   value: number;
-  label: string;
+  label?: string;
 }
 
 interface MetricsChartProps {
@@ -34,6 +35,8 @@ export function MetricsChart({
   unit = '',
   height = 200,
 }: MetricsChartProps) {
+  const gradientId = useId().replace(/:/g, '');
+
   if (data.length === 0) {
     return (
       <div
@@ -49,7 +52,7 @@ export function MetricsChart({
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
         <defs>
-          <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={0.2} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
@@ -84,7 +87,7 @@ export function MetricsChart({
           type="monotone"
           dataKey="value"
           stroke={color}
-          fill="url(#chartGradient)"
+          fill={`url(#${gradientId})`}
           strokeWidth={2}
         />
       </AreaChart>
