@@ -24,6 +24,7 @@ import {
   useSidebarOpen,
   useExpandedSections,
 } from '@/stores/preferences-store';
+import { useApiGroups } from '@/hooks/useApiGroups';
 import { NAV_SECTIONS, getAllNavItems, findNavItemById } from './nav-sections';
 import type { NavItem } from './nav-sections';
 import { NamespaceSelector } from './NamespaceSelector';
@@ -34,6 +35,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [expandedSectionsArr, setExpandedSections] = useExpandedSections();
   const [pinnedItems, togglePinned] = usePinnedNavItems();
   const [navSearch, setNavSearch] = useState('');
+  const { groups: apiGroups } = useApiGroups();
+
+  const isItemAvailable = (item: NavItem) =>
+    !item.requiredGroup || apiGroups.has(item.requiredGroup);
+
+  const visibleSections = useMemo(
+    () =>
+      NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.filter(isItemAvailable),
+      })).filter((section) => section.items.length > 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiGroups],
+  );
 
   const expandedSections = useMemo(
     () => new Set(expandedSectionsArr),
@@ -48,7 +63,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const allNavItems = useMemo(() => getAllNavItems(), []);
+  const allNavItems = useMemo(
+    () => getAllNavItems().filter(isItemAvailable),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiGroups],
+  );
 
   const filteredItems = useMemo(() => {
     if (!navSearch) return null;
@@ -62,8 +81,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     () =>
       pinnedItems
         .map((id) => findNavItemById(id))
-        .filter((item): item is NonNullable<typeof item> => !!item),
-    [pinnedItems],
+        .filter(
+          (item): item is NonNullable<typeof item> =>
+            !!item && isItemAvailable(item),
+        ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pinnedItems, apiGroups],
   );
 
   const isSearching = navSearch.length > 0;
@@ -181,7 +204,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
 
               {/* Sections */}
-              {NAV_SECTIONS.map((section) => {
+              {visibleSections.map((section) => {
                 const SectionIcon = section.icon;
                 const isExpanded = expandedSections.has(section.id);
                 return (

@@ -22,6 +22,8 @@ export interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** If set, this nav item is only shown when this API group exists on the cluster. */
+  requiredGroup?: string;
 }
 
 export interface NavSection {
@@ -57,7 +59,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'services', label: 'Services', href: '/resources/core/v1/services', icon: Globe },
       { id: 'ingresses', label: 'Ingresses', href: '/resources/networking.k8s.io/v1/ingresses', icon: Network },
-      { id: 'routes', label: 'Routes', href: '/resources/route.openshift.io/v1/routes', icon: Split },
+      { id: 'routes', label: 'Routes', href: '/resources/route.openshift.io/v1/routes', icon: Split, requiredGroup: 'route.openshift.io' },
     ],
   },
   {
