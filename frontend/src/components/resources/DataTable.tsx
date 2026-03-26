@@ -6,10 +6,11 @@ import { cn } from '@/lib/utils';
 import type { ColumnDef } from '@/lib/k8s/resource-registry';
 import type { K8sResource } from '@/lib/k8s/types';
 
-interface ActionItem {
+export interface ActionItem {
   label: string;
   onClick: () => void;
   variant?: 'default' | 'destructive';
+  hidden?: boolean;
 }
 
 interface DataTableProps {
@@ -130,7 +131,7 @@ export function DataTable({
                     )}
                   </td>
                 ))}
-                {actions && (
+                {actions && actions(resource).some((a) => !a.hidden) && (
                   <td className="px-2">
                     <div className="relative">
                       <button
@@ -148,7 +149,7 @@ export function DataTable({
                       </button>
                       {openMenu === resource.metadata.uid && (
                         <div className="absolute right-0 top-full z-10 mt-1 min-w-[140px] rounded-md border bg-popover py-1 shadow-lg">
-                          {actions(resource).map((action) => (
+                          {actions(resource).filter((a) => !a.hidden).map((action) => (
                             <button
                               key={action.label}
                               onClick={(e) => {

@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useK8sResourceList } from '@/hooks/useK8sResourceList';
+import { useAccessReview } from '@/hooks/useAccessReview';
 import { useActiveNamespace } from '@/stores/namespace-store';
 import { getResourceConfig, getDefaultConfig } from '@/lib/k8s/resource-registry';
-import { urlSegmentToGroup, groupToUrlSegment } from '@/lib/k8s/resource-utils';
+import { urlSegmentToGroup } from '@/lib/k8s/resource-utils';
 import { k8sDelete } from '@/lib/k8s/client';
 import type { K8sResource } from '@/lib/k8s/types';
 import { DataTable } from './DataTable';
@@ -25,11 +26,20 @@ export function ResourceListPage({ groupSlug, version, plural }: ResourceListPag
   const [deleteTarget, setDeleteTarget] = useState<K8sResource | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const effectiveNamespace = config.namespaced ? namespace || undefined : undefined;
+
   const { data, isLoading, error, refetch } = useK8sResourceList({
     group: apiGroup,
     version,
     plural,
-    namespace: config.namespaced ? namespace || undefined : undefined,
+    namespace: effectiveNamespace,
+  });
+
+  const { allowed: canDelete } = useAccessReview({
+    verb: 'delete',
+    resource: plural,
+    group: apiGroup,
+    namespace: effectiveNamespace,
   });
 
   const Icon = config.icon;
@@ -94,6 +104,7 @@ export function ResourceListPage({ groupSlug, version, plural }: ResourceListPag
             label: 'Delete',
             variant: 'destructive',
             onClick: () => setDeleteTarget(resource),
+            hidden: !canDelete,
           },
         ]}
       />

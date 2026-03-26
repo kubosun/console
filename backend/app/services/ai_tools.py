@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from app.services.k8s_client import get_api_client, get_auth, get_core_v1
+from app.services.k8s_client import get_api_client, get_core_v1
 
 K8S_TOOLS = [
     {
@@ -315,23 +315,9 @@ async def _get_events(namespace: str, involved_object: str | None = None, limit:
 async def _check_permissions(
     verb: str, resource: str, group: str = "", namespace: str | None = None
 ) -> dict:
-    from kubernetes.client import V1ResourceAttributes, V1SelfSubjectAccessReview
+    from app.services.k8s_rbac import check_permission
 
-    auth_api = get_auth()
-    attrs = V1ResourceAttributes(
-        verb=verb,
-        resource=resource,
-        group=group if group else None,
-        namespace=namespace,
-    )
-    review = V1SelfSubjectAccessReview(
-        spec={"resourceAttributes": attrs},
-    )
-    result = auth_api.create_self_subject_access_review(review)
-    return {
-        "allowed": result.status.allowed,
-        "reason": result.status.reason or "",
-    }
+    return await check_permission(verb=verb, resource=resource, group=group, namespace=namespace)
 
 
 async def _list_namespaces() -> dict:

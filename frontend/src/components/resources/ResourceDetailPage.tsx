@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useK8sResource } from '@/hooks/useK8sResource';
+import { useAccessReview } from '@/hooks/useAccessReview';
 import { urlSegmentToGroup } from '@/lib/k8s/resource-utils';
 import { getResourceConfig, getDefaultConfig } from '@/lib/k8s/resource-registry';
 import { k8sDelete } from '@/lib/k8s/client';
@@ -53,6 +54,13 @@ export function ResourceDetailPage({
     plural,
     name,
     namespace,
+  });
+
+  const { allowed: canDelete } = useAccessReview({
+    verb: 'delete', resource: plural, group: apiGroup, namespace,
+  });
+  const { allowed: canUpdate } = useAccessReview({
+    verb: 'update', resource: plural, group: apiGroup, namespace,
   });
 
   const Icon = config.icon;
@@ -128,13 +136,15 @@ export function ResourceDetailPage({
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setShowDelete(true)}
-          className="flex items-center gap-1.5 rounded-md border border-destructive/50 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/5 transition-colors"
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete
-        </button>
+        {canDelete && (
+          <button
+            onClick={() => setShowDelete(true)}
+            className="flex items-center gap-1.5 rounded-md border border-destructive/50 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/5 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -163,6 +173,7 @@ export function ResourceDetailPage({
         <YamlTab
           resource={resource}
           group={apiGroup}
+          canEdit={canUpdate}
           version={version}
           plural={plural}
           onSaved={() => refetch()}

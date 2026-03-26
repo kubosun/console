@@ -21,10 +21,11 @@ interface YamlTabProps {
   group: string;
   version: string;
   plural: string;
+  canEdit?: boolean;
   onSaved?: () => void;
 }
 
-export function YamlTab({ resource, group, version, plural, onSaved }: YamlTabProps) {
+export function YamlTab({ resource, group, version, plural, canEdit = true, onSaved }: YamlTabProps) {
   const originalYaml = yaml.dump(resource, { sortKeys: false, lineWidth: -1 });
   const [content, setContent] = useState(originalYaml);
   const [isEditing, setIsEditing] = useState(false);
@@ -62,15 +63,21 @@ export function YamlTab({ resource, group, version, plural, onSaved }: YamlTabPr
     <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex items-center gap-2">
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isEditing}
-            onChange={(e) => setIsEditing(e.target.checked)}
-            className="rounded"
-          />
-          Edit mode
-        </label>
+        {canEdit ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isEditing}
+              onChange={(e) => setIsEditing(e.target.checked)}
+              className="rounded"
+            />
+            Edit mode
+          </label>
+        ) : (
+          <span className="rounded bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            Read-only
+          </span>
+        )}
         {isEditing && (
           <>
             <button
