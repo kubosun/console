@@ -116,6 +116,18 @@ def get_route_host(name: str, namespace: str) -> str:
     ])
 
 
+def resource_exists(kind: str, name: str, namespace: str | None = None) -> bool:
+    """Check if a resource exists."""
+    args = ["get", kind, name]
+    if namespace:
+        args.extend(["-n", namespace])
+    try:
+        run_oc(args)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
 def delete_resource(kind: str, name: str, namespace: str | None = None) -> bool:
     """Delete a resource, returning True if deleted, False if not found."""
     args = ["delete", kind, name, "--ignore-not-found"]

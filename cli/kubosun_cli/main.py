@@ -257,12 +257,47 @@ def status(
 def destroy(
     namespace: str = typer.Option("kubosun", help="Target namespace"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be deleted without deleting"),
     delete_namespace: bool = typer.Option(False, help="Also delete the namespace/project"),
 ):
     """Destroy deployment — remove all Kubosun resources from the cluster."""
 
     user = cluster.check_login()
     console.print(f"Logged in as [bold]{user}[/bold]")
+
+    steps = [
+        ("Route", "route", "kubosun", namespace),
+        ("Frontend Service", "service", "kubosun-frontend", namespace),
+        ("Backend Service", "service", "kubosun-backend", namespace),
+        ("Frontend Deployment", "deployment", "kubosun-frontend", namespace),
+        ("Backend Deployment", "deployment", "kubosun-backend", namespace),
+        ("Frontend BuildConfig", "buildconfig", "kubosun-frontend", namespace),
+        ("Backend BuildConfig", "buildconfig", "kubosun-backend", namespace),
+        ("Frontend ImageStream", "imagestream", "kubosun-frontend", namespace),
+        ("Backend ImageStream", "imagestream", "kubosun-backend", namespace),
+        ("Secrets", "secret", "kubosun-secrets", namespace),
+        ("ServiceAccount", "serviceaccount", "kubosun", namespace),
+    ]
+
+    if dry_run:
+        console.print(f"\n[bold yellow]Dry run[/bold yellow] — the following would be deleted:\n")
+        for label, kind, name, ns in steps:
+            exists = cluster.resource_exists(kind, name, ns)
+            if exists:
+                console.print(f"  [red]Delete[/red] {label} ({kind}/{name})")
+            else:
+                console.print(f"  [dim]Skip[/dim]   {label} (not found)")
+        # RBAC
+        console.print(f"  [red]Remove[/red] RBAC cluster-reader binding")
+        # OAuthClient
+        if cluster.resource_exists("oauthclient", "kubosun-console"):
+            console.print(f"  [red]Delete[/red] OAuthClient (kubosun-console)")
+        else:
+            console.print(f"  [dim]Skip[/dim]   OAuthClient (not found)")
+        if delete_namespace:
+            console.print(f"  [red]Delete[/red] Namespace ({namespace})")
+        console.print(f"\n[yellow]No changes made.[/yellow]")
+        return
 
     # Confirmation
     console.print()
@@ -283,20 +318,6 @@ def destroy(
             raise typer.Exit(0)
 
     # Delete in reverse order of setup
-    steps = [
-        ("Route", "route", "kubosun", namespace),
-        ("Frontend Service", "service", "kubosun-frontend", namespace),
-        ("Backend Service", "service", "kubosun-backend", namespace),
-        ("Frontend Deployment", "deployment", "kubosun-frontend", namespace),
-        ("Backend Deployment", "deployment", "kubosun-backend", namespace),
-        ("Frontend BuildConfig", "buildconfig", "kubosun-frontend", namespace),
-        ("Backend BuildConfig", "buildconfig", "kubosun-backend", namespace),
-        ("Frontend ImageStream", "imagestream", "kubosun-frontend", namespace),
-        ("Backend ImageStream", "imagestream", "kubosun-backend", namespace),
-        ("Secrets", "secret", "kubosun-secrets", namespace),
-        ("ServiceAccount", "serviceaccount", "kubosun", namespace),
-    ]
-
     for label, kind, name, ns in steps:
         deleted = cluster.delete_resource(kind, name, ns)
         if deleted:
