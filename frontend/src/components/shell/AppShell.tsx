@@ -18,6 +18,7 @@ import {
   Network,
   Package,
   PanelLeft,
+  Split,
   PanelLeftClose,
   Rocket,
   Server,
@@ -67,6 +68,8 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Network,
     items: [
       { id: 'services', label: 'Services', href: '/resources/core/v1/services', icon: Globe },
+      { id: 'ingresses', label: 'Ingresses', href: '/resources/networking.k8s.io/v1/ingresses', icon: Network },
+      { id: 'routes', label: 'Routes', href: '/resources/route.openshift.io/v1/routes', icon: Split },
     ],
   },
   {

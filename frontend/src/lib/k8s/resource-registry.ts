@@ -13,7 +13,9 @@ import {
   Globe,
   Lock,
   Monitor,
+  Network,
   Rocket,
+  Split,
 } from 'lucide-react';
 import type { K8sResource } from './types';
 import { formatAge, getResourceStatus } from './resource-utils';
@@ -211,6 +213,51 @@ export const RESOURCE_REGISTRY = new Map<string, ResourceTypeConfig>([
       columns: [
         { id: 'name', header: 'Name', accessor: (r) => r.metadata.name, sortable: true },
         { id: 'status', header: 'Status', accessor: (r) => String(r.status?.phase ?? '-'), sortable: true },
+        { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
+      ],
+    },
+  ],
+  [
+    'networking.k8s.io/v1/ingresses',
+    {
+      group: 'networking.k8s.io',
+      version: 'v1',
+      plural: 'ingresses',
+      kind: 'Ingress',
+      label: 'Ingress',
+      labelPlural: 'Ingresses',
+      namespaced: true,
+      icon: Network,
+      columns: [
+        { id: 'name', header: 'Name', accessor: (r) => r.metadata.name, sortable: true },
+        { id: 'namespace', header: 'Namespace', accessor: (r) => r.metadata.namespace ?? '-', sortable: true },
+        { id: 'class', header: 'Class', accessor: (r) => String(r.spec?.ingressClassName ?? '-') },
+        { id: 'hosts', header: 'Hosts', accessor: (r) => {
+          const rules = (r.spec?.rules as Array<{ host?: string }>) ?? [];
+          return rules.map((rule) => rule.host ?? '*').join(', ') || '-';
+        }},
+        { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
+      ],
+    },
+  ],
+  [
+    'route.openshift.io/v1/routes',
+    {
+      group: 'route.openshift.io',
+      version: 'v1',
+      plural: 'routes',
+      kind: 'Route',
+      label: 'Route',
+      labelPlural: 'Routes',
+      namespaced: true,
+      icon: Split,
+      columns: [
+        { id: 'name', header: 'Name', accessor: (r) => r.metadata.name, sortable: true },
+        { id: 'namespace', header: 'Namespace', accessor: (r) => r.metadata.namespace ?? '-', sortable: true },
+        { id: 'host', header: 'Host', accessor: (r) => String(r.spec?.host ?? '-') },
+        { id: 'path', header: 'Path', accessor: (r) => String(r.spec?.path ?? '/') },
+        { id: 'service', header: 'Service', accessor: (r) => String((r.spec?.to as Record<string, unknown>)?.name ?? '-') },
+        { id: 'tls', header: 'TLS', accessor: (r) => r.spec?.tls ? 'Yes' : 'No' },
         { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
       ],
     },
