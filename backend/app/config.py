@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]
 
-    model_config = {"env_prefix": "KUBOSUN_"}
+    model_config = {"env_prefix": "KUBOSUN_", "env_file": ".env.local"}
 
 
 settings = Settings()
