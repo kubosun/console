@@ -2,7 +2,23 @@
 
 from typing import Any
 
+from kubernetes.client import ApiClient, Configuration
+
 from app.services.k8s_client import get_api_client, get_core_v1
+
+
+def _get_client(user_token: str | None = None) -> ApiClient:
+    """Get an API client, optionally using a user's OAuth token."""
+    if not user_token:
+        return get_api_client()
+    base_client = get_api_client()
+    cfg = Configuration()
+    cfg.host = base_client.configuration.host
+    cfg.api_key = {"authorization": f"Bearer {user_token}"}
+    cfg.verify_ssl = base_client.configuration.verify_ssl
+    cfg.ssl_ca_cert = base_client.configuration.ssl_ca_cert
+    return ApiClient(configuration=cfg)
+
 
 K8S_TOOLS = [
     {
@@ -147,41 +163,50 @@ K8S_TOOLS = [
 ]
 
 
-async def execute_tool(tool_name: str, tool_input: dict[str, Any]) -> str:
+async def execute_tool(
+    tool_name: str, tool_input: dict[str, Any], user_token: str | None = None
+) -> str:
     """Execute a K8s tool and return the result as a string."""
     import json
 
     try:
-        result = await _dispatch_tool(tool_name, tool_input)
+        result = await _dispatch_tool(tool_name, tool_input, user_token)
         return json.dumps(result, default=str, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
 
 
-async def _dispatch_tool(tool_name: str, tool_input: dict[str, Any]) -> Any:
+async def _dispatch_tool(
+    tool_name: str, tool_input: dict[str, Any], user_token: str | None = None
+) -> Any:
     """Route tool calls to their implementations."""
+    client = _get_client(user_token)
     if tool_name == "list_resources":
-        return await _list_resources(tool_input["api_path"])
+        return await _list_resources(tool_input["api_path"], client)
     elif tool_name == "get_resource":
-        return await _get_resource(tool_input["api_path"])
+        return await _get_resource(tool_input["api_path"], client)
     elif tool_name == "get_pod_logs":
         return await _get_pod_logs(**tool_input)
     elif tool_name == "apply_resource":
-        return await _apply_resource(tool_input["manifest"], tool_input.get("dry_run", True))
+        return await _apply_resource(
+            tool_input["manifest"], tool_input.get("dry_run", True), client
+        )
     elif tool_name == "delete_resource":
-        return await _delete_resource(tool_input["api_path"], tool_input.get("dry_run", True))
+        return await _delete_resource(
+            tool_input["api_path"], tool_input.get("dry_run", True), client
+        )
     elif tool_name == "get_events":
         return await _get_events(**tool_input)
     elif tool_name == "check_permissions":
         return await _check_permissions(**tool_input)
     elif tool_name == "list_namespaces":
-        return await _list_namespaces()
+        return await _list_namespaces(client)
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
 
-async def _list_resources(api_path: str) -> dict:
-    api_client = get_api_client()
+async def _list_resources(api_path: str, api_client: ApiClient | None = None) -> dict:
+    api_client = api_client or get_api_client()
     response = api_client.call_api(
         f"/{api_path}",
         "GET",
@@ -204,8 +229,8 @@ async def _list_resources(api_path: str) -> dict:
     }
 
 
-async def _get_resource(api_path: str) -> dict:
-    api_client = get_api_client()
+async def _get_resource(api_path: str, api_client: ApiClient | None = None) -> dict:
+    api_client = api_client or get_api_client()
     response = api_client.call_api(
         f"/{api_path}",
         "GET",
@@ -226,8 +251,10 @@ async def _get_pod_logs(
     return {"logs": logs}
 
 
-async def _apply_resource(manifest: dict, dry_run: bool = True) -> dict:
-    api_client = get_api_client()
+async def _apply_resource(
+    manifest: dict, dry_run: bool = True, api_client: ApiClient | None = None
+) -> dict:
+    api_client = api_client or get_api_client()
     api_version = manifest.get("apiVersion", "v1")
     kind = manifest.get("kind", "")
     metadata = manifest.get("metadata", {})
@@ -271,8 +298,10 @@ async def _apply_resource(manifest: dict, dry_run: bool = True) -> dict:
     }
 
 
-async def _delete_resource(api_path: str, dry_run: bool = True) -> dict:
-    api_client = get_api_client()
+async def _delete_resource(
+    api_path: str, dry_run: bool = True, api_client: ApiClient | None = None
+) -> dict:
+    api_client = api_client or get_api_client()
     query_params = [("dryRun", "All")] if dry_run else []
 
     api_client.call_api(
@@ -320,8 +349,10 @@ async def _check_permissions(
     return await check_permission(verb=verb, resource=resource, group=group, namespace=namespace)
 
 
-async def _list_namespaces() -> dict:
-    core = get_core_v1()
+async def _list_namespaces(api_client: ApiClient | None = None) -> dict:
+    from kubernetes import client as k8s_client
+
+    core = k8s_client.CoreV1Api(api_client) if api_client else get_core_v1()
     ns_list = core.list_namespace()
     return {
         "namespaces": [

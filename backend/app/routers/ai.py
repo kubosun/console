@@ -4,7 +4,7 @@ import json
 from collections.abc import AsyncGenerator
 
 import anthropic
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
@@ -44,11 +44,12 @@ class ChatRequest(BaseModel):
 
 
 @router.post("/chat")
-async def chat(request: ChatRequest) -> StreamingResponse:
+async def chat(request: ChatRequest, raw_request: Request) -> StreamingResponse:
     """Stream an AI chat response with tool use."""
     if not settings.anthropic_api_key:
         raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY not configured")
 
+    user_token = getattr(raw_request.state, "user_token", None)
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
     # Build conversation messages
@@ -81,8 +82,8 @@ async def chat(request: ChatRequest) -> StreamingResponse:
                     # Tell frontend which tool is being called
                     yield f"data: {json.dumps({'type': 'tool_call', 'tool': block.name, 'input': block.input})}\n\n"
 
-                    # Execute the tool
-                    result = await execute_tool(block.name, block.input)
+                    # Execute the tool with user's token for proper RBAC
+                    result = await execute_tool(block.name, block.input, user_token=user_token)
 
                     # Send tool result to frontend
                     yield f"data: {json.dumps({'type': 'tool_result', 'tool': block.name, 'result': result})}\n\n"
