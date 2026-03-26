@@ -2,22 +2,41 @@
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from kubernetes.client import ApiClient, Configuration, CoreV1Api, VersionApi
 
-from app.services.k8s_client import get_api_client, get_core_v1, get_version
+from app.services.k8s_client import get_api_client
 
 router = APIRouter(prefix="/api/cluster", tags=["cluster"])
 
 
-@router.get("/summary")
-async def cluster_summary() -> dict:
-    """Return aggregated cluster health, resource counts, and recent events."""
-    api_client = get_api_client()
-    core = get_core_v1()
+def _get_client(request: Request) -> ApiClient:
+    """Get an API client using the user's token if available."""
+    user_token = getattr(request.state, "user_token", None)
+    if not user_token:
+        return get_api_client()
+    base = get_api_client()
+    cfg = Configuration()
+    cfg.host = base.configuration.host
+    cfg.api_key = {"authorization": f"Bearer {user_token}"}
+    cfg.verify_ssl = base.configuration.verify_ssl
+    cfg.ssl_ca_cert = base.configuration.ssl_ca_cert
+    return ApiClient(configuration=cfg)
 
-    # Cluster version
+
+@router.get("/summary")
+async def cluster_summary(request: Request) -> dict:
+    """Return aggregated cluster health, resource counts, and recent events.
+
+    Uses the user's OAuth token for RBAC enforcement — users only see
+    what their permissions allow.
+    """
+    api_client = _get_client(request)
+    core = CoreV1Api(api_client)
+
+    # Cluster version (generally accessible to all authenticated users)
     try:
-        version_api = get_version()
+        version_api = VersionApi(api_client)
         version_info = version_api.get_code()
         cluster_info = {
             "version": version_info.git_version,
@@ -43,7 +62,7 @@ async def cluster_summary() -> dict:
     except Exception:
         node_health = {"total": 0, "ready": 0, "notReady": 0}
 
-    # Resource counts (use limit=1 and read metadata.remainingItemCount or list all)
+    # Resource counts
     counts = {}
     for resource_type in ["pods", "deployments", "services", "namespaces"]:
         try:
@@ -71,7 +90,7 @@ async def cluster_summary() -> dict:
         except Exception:
             counts[resource_type] = 0
 
-    # Recent events (cluster-wide, last 20)
+    # Recent events (scoped to user's permissions)
     try:
         events = api_client.call_api(
             "/api/v1/events",

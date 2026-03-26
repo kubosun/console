@@ -186,7 +186,7 @@ async def _dispatch_tool(
     elif tool_name == "get_resource":
         return await _get_resource(tool_input["api_path"], client)
     elif tool_name == "get_pod_logs":
-        return await _get_pod_logs(**tool_input)
+        return await _get_pod_logs(client=client, **tool_input)
     elif tool_name == "apply_resource":
         return await _apply_resource(
             tool_input["manifest"], tool_input.get("dry_run", True), client
@@ -196,9 +196,9 @@ async def _dispatch_tool(
             tool_input["api_path"], tool_input.get("dry_run", True), client
         )
     elif tool_name == "get_events":
-        return await _get_events(**tool_input)
+        return await _get_events(client=client, **tool_input)
     elif tool_name == "check_permissions":
-        return await _check_permissions(**tool_input)
+        return await _check_permissions(user_token=user_token, **tool_input)
     elif tool_name == "list_namespaces":
         return await _list_namespaces(client)
     else:
@@ -241,9 +241,15 @@ async def _get_resource(api_path: str, api_client: ApiClient | None = None) -> d
 
 
 async def _get_pod_logs(
-    name: str, namespace: str, container: str | None = None, tail_lines: int = 100
+    name: str,
+    namespace: str,
+    container: str | None = None,
+    tail_lines: int = 100,
+    client: ApiClient | None = None,
 ) -> dict:
-    core = get_core_v1()
+    from kubernetes import client as k8s_client
+
+    core = k8s_client.CoreV1Api(client) if client else get_core_v1()
     kwargs: dict[str, Any] = {"tail_lines": tail_lines}
     if container:
         kwargs["container"] = container
@@ -316,8 +322,15 @@ async def _delete_resource(
     return {"action": action, "path": api_path}
 
 
-async def _get_events(namespace: str, involved_object: str | None = None, limit: int = 20) -> dict:
-    core = get_core_v1()
+async def _get_events(
+    namespace: str,
+    involved_object: str | None = None,
+    limit: int = 20,
+    client: ApiClient | None = None,
+) -> dict:
+    from kubernetes import client as k8s_client
+
+    core = k8s_client.CoreV1Api(client) if client else get_core_v1()
     if involved_object:
         field_selector = f"involvedObject.name={involved_object}"
         events = core.list_namespaced_event(namespace, field_selector=field_selector, limit=limit)
@@ -342,11 +355,17 @@ async def _get_events(namespace: str, involved_object: str | None = None, limit:
 
 
 async def _check_permissions(
-    verb: str, resource: str, group: str = "", namespace: str | None = None
+    verb: str,
+    resource: str,
+    group: str = "",
+    namespace: str | None = None,
+    user_token: str | None = None,
 ) -> dict:
     from app.services.k8s_rbac import check_permission
 
-    return await check_permission(verb=verb, resource=resource, group=group, namespace=namespace)
+    return await check_permission(
+        verb=verb, resource=resource, group=group, namespace=namespace, user_token=user_token
+    )
 
 
 async def _list_namespaces(api_client: ApiClient | None = None) -> dict:
