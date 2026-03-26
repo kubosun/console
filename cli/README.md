@@ -57,6 +57,29 @@ kubosun destroy --yes --delete-namespace
 
 Removes all Kubosun resources: deployments, services, builds, secrets, route, OAuthClient, and RBAC bindings.
 
+### Add a user
+
+```bash
+# Grant view access to specific namespaces
+kubosun add-user alice --role view -n default -n my-app
+
+# Grant view access to ALL namespaces except kubosun
+kubosun add-user bob --role view --all-namespaces
+
+# Grant edit access
+kubosun add-user charlie --role edit -n default
+```
+
+The kubosun namespace (where secrets live) is always excluded. Users must first log in via OpenShift OAuth — the user object is created on first login.
+
+### Remove a user
+
+```bash
+kubosun remove-user alice
+```
+
+Finds and removes all role bindings for the user across all namespaces.
+
 ## Options
 
 All commands accept `--namespace` (default: `kubosun`):

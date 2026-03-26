@@ -140,6 +140,42 @@ def delete_resource(kind: str, name: str, namespace: str | None = None) -> bool:
         return False
 
 
+def get_all_namespaces() -> list[str]:
+    """Get all namespace names on the cluster."""
+    output = run_oc(["get", "namespaces", "-o", "jsonpath={.items[*].metadata.name}"])
+    return output.split() if output else []
+
+
+def add_role_to_user(username: str, role: str, namespace: str) -> None:
+    """Grant a role to a user in a namespace."""
+    run_oc(["adm", "policy", "add-role-to-user", role, username, "-n", namespace])
+
+
+def remove_role_from_user(username: str, role: str, namespace: str) -> None:
+    """Remove a role from a user in a namespace."""
+    run_oc(["adm", "policy", "remove-role-from-user", role, username, "-n", namespace], check=False)
+
+
+def get_user_role_bindings(username: str) -> list[dict]:
+    """Find all RoleBindings for a user across all namespaces."""
+    output = run_oc([
+        "get", "rolebindings", "--all-namespaces",
+        "-o", "json",
+    ])
+    data = json.loads(output)
+    bindings = []
+    for rb in data.get("items", []):
+        subjects = rb.get("subjects", [])
+        for s in subjects:
+            if s.get("kind") == "User" and s.get("name") == username:
+                bindings.append({
+                    "namespace": rb["metadata"]["namespace"],
+                    "role": rb["roleRef"]["name"],
+                    "binding": rb["metadata"]["name"],
+                })
+    return bindings
+
+
 def get_pods(namespace: str) -> list[dict]:
     """Get pod status in a namespace."""
     output = run_oc([

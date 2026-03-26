@@ -354,5 +354,99 @@ def destroy(
     console.print("[bold green]Destroy complete.[/bold green]")
 
 
+@app.command(name="add-user")
+def add_user(
+    username: str = typer.Argument(..., help="OpenShift username"),
+    role: str = typer.Option("view", help="Role to grant: view, edit, or admin"),
+    namespaces: list[str] = typer.Option([], "--namespace", "-n", help="Namespace to grant access to (repeat for multiple)"),
+    all_namespaces: bool = typer.Option(False, "--all-namespaces", help="Grant access to all namespaces except kubosun"),
+    kubosun_namespace: str = typer.Option("kubosun", help="Kubosun namespace to exclude"),
+):
+    """Grant a user access to namespaces for the Kubosun console.
+
+    The user must first log in via OpenShift OAuth (user is created on first login).
+    Access to the kubosun namespace (where secrets live) is never granted.
+    """
+
+    user = cluster.check_login()
+    console.print(f"Logged in as [bold]{user}[/bold]")
+
+    # Validate role
+    valid_roles = ["view", "edit", "admin"]
+    if role not in valid_roles:
+        console.print(f"[red]Invalid role.[/red] Must be one of: {', '.join(valid_roles)}")
+        raise typer.Exit(1)
+
+    # Determine target namespaces
+    if all_namespaces:
+        all_ns = cluster.get_all_namespaces()
+        target_ns = [ns for ns in all_ns if ns != kubosun_namespace]
+    elif namespaces:
+        target_ns = list(namespaces)
+        if kubosun_namespace in target_ns:
+            console.print(f"[red]Error:[/red] Cannot grant access to '{kubosun_namespace}' namespace (contains secrets)")
+            raise typer.Exit(1)
+    else:
+        console.print("[yellow]Specify --namespace or --all-namespaces[/yellow]")
+        raise typer.Exit(1)
+
+    console.print(f"\nGranting [bold]{role}[/bold] to [bold]{username}[/bold] in {len(target_ns)} namespaces:\n")
+
+    succeeded = 0
+    for ns in target_ns:
+        try:
+            cluster.add_role_to_user(username, role, ns)
+            console.print(f"  [green]+[/green] {ns}")
+            succeeded += 1
+        except subprocess.CalledProcessError:
+            console.print(f"  [red]x[/red] {ns} (failed)")
+
+    console.print(f"\n[bold green]Done![/bold green] Granted {role} in {succeeded}/{len(target_ns)} namespaces.")
+    console.print(f"User '{username}' can now log into the Kubosun console via OAuth.")
+
+
+@app.command(name="remove-user")
+def remove_user(
+    username: str = typer.Argument(..., help="OpenShift username"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation"),
+):
+    """Remove all Kubosun role bindings for a user."""
+
+    user = cluster.check_login()
+    console.print(f"Logged in as [bold]{user}[/bold]")
+
+    # Find all bindings
+    with console.status(f"Finding role bindings for {username}..."):
+        bindings = cluster.get_user_role_bindings(username)
+
+    if not bindings:
+        console.print(f"[yellow]No role bindings found for '{username}'[/yellow]")
+        raise typer.Exit(0)
+
+    # Show what will be removed
+    table = Table(title=f"Role bindings for {username}")
+    table.add_column("Namespace")
+    table.add_column("Role")
+    for b in bindings:
+        table.add_row(b["namespace"], b["role"])
+    console.print(table)
+
+    if not yes:
+        confirmed = typer.confirm(f"Remove all {len(bindings)} bindings?", default=False)
+        if not confirmed:
+            console.print("Aborted.")
+            raise typer.Exit(0)
+
+    # Remove bindings
+    for b in bindings:
+        try:
+            cluster.remove_role_from_user(username, b["role"], b["namespace"])
+            console.print(f"  [red]Removed[/red] {b['role']} from {b['namespace']}")
+        except subprocess.CalledProcessError:
+            console.print(f"  [dim]Skipped[/dim] {b['namespace']} (not found)")
+
+    console.print(f"\n[bold green]Done![/bold green] Removed all access for '{username}'.")
+
+
 if __name__ == "__main__":
     app()
