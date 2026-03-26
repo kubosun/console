@@ -141,3 +141,33 @@ class TestHelmEndpoints:
         data = response.json()
         assert len(data) == 2
         assert data[0]["revision"] == 2
+
+    @patch("app.config.settings.oauth_enabled", False)
+    @patch("app.routers.helm.create_release")
+    def test_create_release(self, mock_create):
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        mock_create.return_value = {
+            "name": "my-nginx",
+            "namespace": "default",
+            "chart": "nginx",
+            "chartVersion": "latest",
+            "repoUrl": "https://charts.bitnami.com/bitnami",
+            "status": "installing",
+        }
+        client = TestClient(app)
+        response = client.post(
+            "/api/helm/releases",
+            json={
+                "name": "my-nginx",
+                "namespace": "default",
+                "repo_url": "https://charts.bitnami.com/bitnami",
+                "chart": "nginx",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "my-nginx"
+        assert data["status"] == "installing"

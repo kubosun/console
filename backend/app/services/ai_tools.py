@@ -214,6 +214,31 @@ K8S_TOOLS = [
             "required": ["name", "namespace"],
         },
     },
+    {
+        "name": "install_helm_release",
+        "description": "Install a Helm chart by creating Flux HelmRepository and HelmRelease CRs.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Release name"},
+                "namespace": {"type": "string", "description": "Target namespace"},
+                "repo_url": {
+                    "type": "string",
+                    "description": "Helm chart repository URL (e.g. https://charts.bitnami.com/bitnami)",
+                },
+                "chart": {"type": "string", "description": "Chart name (e.g. nginx)"},
+                "version": {
+                    "type": "string",
+                    "description": "Chart version (optional, defaults to latest)",
+                },
+                "values": {
+                    "type": "object",
+                    "description": "User-supplied chart values (optional)",
+                },
+            },
+            "required": ["name", "namespace", "repo_url", "chart"],
+        },
+    },
 ]
 
 
@@ -264,6 +289,16 @@ async def _dispatch_tool(
     elif tool_name == "uninstall_helm_release":
         return await _uninstall_helm_release(
             tool_input["name"], tool_input["namespace"], tool_input.get("dry_run", True), user_token
+        )
+    elif tool_name == "install_helm_release":
+        return await _install_helm_release(
+            tool_input["name"],
+            tool_input["namespace"],
+            tool_input["repo_url"],
+            tool_input["chart"],
+            tool_input.get("version"),
+            tool_input.get("values"),
+            user_token,
         )
     else:
         return {"error": f"Unknown tool: {tool_name}"}
@@ -510,3 +545,25 @@ async def _uninstall_helm_release(
     from app.services.helm_releases import delete_release
 
     return await delete_release(name, namespace, user_token=user_token)
+
+
+async def _install_helm_release(
+    name: str,
+    namespace: str,
+    repo_url: str,
+    chart: str,
+    version: str | None = None,
+    values: dict | None = None,
+    user_token: str | None = None,
+) -> dict:
+    from app.services.helm_releases import create_release
+
+    return await create_release(
+        name=name,
+        namespace=namespace,
+        repo_url=repo_url,
+        chart=chart,
+        version=version,
+        values=values,
+        user_token=user_token,
+    )

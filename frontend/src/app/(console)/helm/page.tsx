@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Package, ArrowUpDown, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Package, ArrowUpDown, AlertCircle, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useHelmReleases } from '@/hooks/useHelmReleases';
 import { useActiveNamespace } from '@/stores/namespace-store';
@@ -83,14 +84,23 @@ export default function HelmReleasesPage() {
   return (
     <div className="p-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Package className="h-6 w-6 text-muted-foreground" />
-        <h1 className="text-xl font-semibold">Helm Releases</h1>
-        {data && (
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {data.length}
-          </span>
-        )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Package className="h-6 w-6 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">Helm Releases</h1>
+          {data && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {data.length}
+            </span>
+          )}
+        </div>
+        <Link
+          href="/helm/create"
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          <Plus className="h-4 w-4" />
+          Create Release
+        </Link>
       </div>
 
       {/* Error state */}

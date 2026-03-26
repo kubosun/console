@@ -2,13 +2,24 @@
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from app.services.helm_releases import (
+    create_release,
     delete_release,
     get_release,
     get_release_history,
     list_releases,
 )
+
+
+class CreateHelmReleaseRequest(BaseModel):
+    name: str
+    namespace: str
+    repo_url: str
+    chart: str
+    version: str | None = None
+    values: dict | None = None
 
 router = APIRouter(prefix="/api/helm", tags=["helm"])
 
@@ -47,6 +58,21 @@ async def helm_release_values(namespace: str, name: str, request: Request) -> di
         return release.get("values", {})
     except ValueError as e:
         return JSONResponse(status_code=404, content={"error": str(e)})
+
+
+@router.post("/releases")
+async def helm_create_release(body: CreateHelmReleaseRequest, request: Request) -> dict:
+    """Create a Helm release via Flux HelmRelease CR."""
+    user_token = getattr(request.state, "user_token", None)
+    return await create_release(
+        name=body.name,
+        namespace=body.namespace,
+        repo_url=body.repo_url,
+        chart=body.chart,
+        version=body.version,
+        values=body.values,
+        user_token=user_token,
+    )
 
 
 @router.delete("/releases/{namespace}/{name}")

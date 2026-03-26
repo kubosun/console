@@ -162,3 +162,119 @@ async def delete_release(
         "namespace": namespace,
         "secrets_removed": str(deleted),
     }
+
+
+def _sanitize_repo_name(url: str) -> str:
+    """Derive a short repo name from a URL."""
+    import re
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(url)
+    host = parsed.hostname or "repo"
+    path = parsed.path.strip("/").replace("/", "-") or host
+    name = re.sub(r"[^a-z0-9-]", "-", path.lower()).strip("-")
+    return name[:63] or "helm-repo"
+
+
+async def ensure_helm_repository(
+    repo_url: str,
+    namespace: str,
+    user_token: str | None = None,
+) -> str:
+    """Create a Flux HelmRepository if one doesn't exist for this URL.
+
+    Returns the HelmRepository name.
+    """
+    client = _get_user_client(user_token)
+    repo_name = _sanitize_repo_name(repo_url)
+
+    # Check if it already exists
+    try:
+        client.call_api(
+            f"/apis/source.toolkit.fluxcd.io/v1"
+            f"/namespaces/{namespace}/helmrepositories/{repo_name}",
+            "GET",
+            response_type="object",
+            auth_settings=["BearerToken"],
+        )
+        return repo_name
+    except Exception:
+        pass
+
+    # Create it
+    manifest = {
+        "apiVersion": "source.toolkit.fluxcd.io/v1",
+        "kind": "HelmRepository",
+        "metadata": {"name": repo_name, "namespace": namespace},
+        "spec": {"interval": "15m", "url": repo_url},
+    }
+    client.call_api(
+        f"/apis/source.toolkit.fluxcd.io/v1"
+        f"/namespaces/{namespace}/helmrepositories",
+        "POST",
+        body=manifest,
+        response_type="object",
+        auth_settings=["BearerToken"],
+        header_params={"Content-Type": "application/json"},
+    )
+    return repo_name
+
+
+async def create_release(
+    name: str,
+    namespace: str,
+    repo_url: str,
+    chart: str,
+    version: str | None = None,
+    values: dict[str, Any] | None = None,
+    user_token: str | None = None,
+) -> dict[str, Any]:
+    """Create a Helm release via a Flux HelmRelease CR."""
+    client = _get_user_client(user_token)
+
+    # Ensure the HelmRepository exists
+    repo_name = await ensure_helm_repository(
+        repo_url, namespace, user_token
+    )
+
+    # Build the HelmRelease manifest
+    chart_spec: dict[str, Any] = {
+        "chart": chart,
+        "sourceRef": {
+            "kind": "HelmRepository",
+            "name": repo_name,
+        },
+    }
+    if version:
+        chart_spec["version"] = version
+
+    manifest: dict[str, Any] = {
+        "apiVersion": "helm.toolkit.fluxcd.io/v2",
+        "kind": "HelmRelease",
+        "metadata": {"name": name, "namespace": namespace},
+        "spec": {
+            "interval": "15m",
+            "chart": {"spec": chart_spec},
+        },
+    }
+    if values:
+        manifest["spec"]["values"] = values
+
+    client.call_api(
+        f"/apis/helm.toolkit.fluxcd.io/v2"
+        f"/namespaces/{namespace}/helmreleases",
+        "POST",
+        body=manifest,
+        response_type="object",
+        auth_settings=["BearerToken"],
+        header_params={"Content-Type": "application/json"},
+    )
+
+    return {
+        "name": name,
+        "namespace": namespace,
+        "chart": chart,
+        "chartVersion": version or "latest",
+        "repoUrl": repo_url,
+        "status": "installing",
+    }

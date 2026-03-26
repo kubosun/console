@@ -61,6 +61,21 @@ export async function k8sUpdate<T = unknown>(
   });
 }
 
+export async function k8sCreate<T = unknown>(
+  group: string,
+  version: string,
+  plural: string,
+  body: unknown,
+  namespace?: string,
+): Promise<T> {
+  const basePath = group ? `apis/${group}/${version}` : `api/${version}`;
+  const nsPath = namespace ? `namespaces/${namespace}/` : '';
+  return k8sFetch(`${basePath}/${nsPath}${plural}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
 export async function k8sDelete(
   group: string,
   version: string,
