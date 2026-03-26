@@ -1,12 +1,14 @@
 import {
   Activity,
   Bell,
+  Blocks,
   Box,
   Container,
   FileText,
   FolderOpen,
   Globe,
   HardDrive,
+  Layers,
   Lock,
   Monitor,
   Network,
@@ -69,6 +71,15 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'configmaps', label: 'ConfigMaps', href: '/resources/core/v1/configmaps', icon: FileText },
       { id: 'secrets', label: 'Secrets', href: '/resources/core/v1/secrets', icon: Lock },
+    ],
+  },
+  {
+    id: 'operators-crds',
+    label: 'Operators & CRDs',
+    icon: Blocks,
+    items: [
+      { id: 'operators', label: 'Operators', href: '/operators', icon: Layers, requiredGroup: 'operators.coreos.com' },
+      { id: 'crds', label: 'CRDs', href: '/resources/apiextensions.k8s.io/v1/customresourcedefinitions', icon: Blocks },
     ],
   },
   {

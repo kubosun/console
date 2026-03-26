@@ -2,6 +2,7 @@
 
 import { use } from 'react';
 import { ResourceDetailPage } from '@/components/resources/ResourceDetailPage';
+import { CrdDetailPage } from '@/components/resources/CrdDetailPage';
 
 export default function ResourceDetailRoute({
   params,
@@ -9,6 +10,11 @@ export default function ResourceDetailRoute({
   params: Promise<{ group: string; version: string; plural: string; name: string }>;
 }) {
   const { group, version, plural, name } = use(params);
+
+  if (group === 'apiextensions.k8s.io' && plural === 'customresourcedefinitions') {
+    return <CrdDetailPage name={decodeURIComponent(name)} />;
+  }
+
   return (
     <ResourceDetailPage
       groupSlug={group}

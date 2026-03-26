@@ -10,6 +10,7 @@ const ALL_SECTION_IDS = [
   'workloads',
   'networking',
   'configuration',
+  'operators-crds',
   'observe',
   'storage',
   'helm',

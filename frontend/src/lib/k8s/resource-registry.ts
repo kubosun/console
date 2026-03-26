@@ -7,10 +7,12 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
+  Blocks,
   Box,
   Container,
   FileText,
   Globe,
+  Layers,
   Lock,
   Monitor,
   Network,
@@ -258,6 +260,86 @@ export const RESOURCE_REGISTRY = new Map<string, ResourceTypeConfig>([
         { id: 'path', header: 'Path', accessor: (r) => String(r.spec?.path ?? '/') },
         { id: 'service', header: 'Service', accessor: (r) => String((r.spec?.to as Record<string, unknown>)?.name ?? '-') },
         { id: 'tls', header: 'TLS', accessor: (r) => r.spec?.tls ? 'Yes' : 'No' },
+        { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
+      ],
+    },
+  ],
+  [
+    'apiextensions.k8s.io/v1/customresourcedefinitions',
+    {
+      group: 'apiextensions.k8s.io',
+      version: 'v1',
+      plural: 'customresourcedefinitions',
+      kind: 'CustomResourceDefinition',
+      label: 'CRD',
+      labelPlural: 'Custom Resource Definitions',
+      namespaced: false,
+      icon: Blocks,
+      columns: [
+        { id: 'name', header: 'Name', accessor: (r) => r.metadata.name, sortable: true },
+        {
+          id: 'group',
+          header: 'Group',
+          accessor: (r) => String((r.spec as Record<string, unknown>)?.group ?? '-'),
+          sortable: true,
+        },
+        {
+          id: 'kind',
+          header: 'Kind',
+          accessor: (r) => {
+            const names = (r.spec as Record<string, unknown>)?.names as Record<string, unknown> | undefined;
+            return String(names?.kind ?? '-');
+          },
+          sortable: true,
+        },
+        {
+          id: 'scope',
+          header: 'Scope',
+          accessor: (r) => String((r.spec as Record<string, unknown>)?.scope ?? '-'),
+          sortable: true,
+        },
+        {
+          id: 'versions',
+          header: 'Versions',
+          accessor: (r) => {
+            const versions = (r.spec as Record<string, unknown>)?.versions as Array<{ name: string; served: boolean }> | undefined;
+            return versions?.filter((v) => v.served).map((v) => v.name).join(', ') || '-';
+          },
+        },
+        { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
+      ],
+    },
+  ],
+  [
+    'operators.coreos.com/v1alpha1/clusterserviceversions',
+    {
+      group: 'operators.coreos.com',
+      version: 'v1alpha1',
+      plural: 'clusterserviceversions',
+      kind: 'ClusterServiceVersion',
+      label: 'Operator',
+      labelPlural: 'Operators',
+      namespaced: true,
+      icon: Layers,
+      columns: [
+        {
+          id: 'displayName',
+          header: 'Display Name',
+          accessor: (r) => String((r.spec as Record<string, unknown>)?.displayName ?? r.metadata.name),
+          sortable: true,
+        },
+        { id: 'namespace', header: 'Namespace', accessor: (r) => r.metadata.namespace ?? '-', sortable: true },
+        {
+          id: 'version',
+          header: 'Version',
+          accessor: (r) => String((r.spec as Record<string, unknown>)?.version ?? '-'),
+        },
+        {
+          id: 'phase',
+          header: 'Phase',
+          accessor: (r) => String((r.status as Record<string, unknown>)?.phase ?? '-'),
+          sortable: true,
+        },
         { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
       ],
     },
