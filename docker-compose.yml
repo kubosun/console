@@ -1,0 +1,41 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - KUBOSUN_DEBUG=true
+      - KUBOSUN_CORS_ORIGINS=["http://localhost:3000"]
+      - KUBOSUN_ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - KUBOSUN_KUBECONFIG_PATH=/root/.kube/config
+    volumes:
+      - ${HOME}/.kube:/root/.kube:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    develop:
+      watch:
+        - action: sync
+          path: ./backend/app
+          target: /app/app
