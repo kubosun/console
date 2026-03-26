@@ -1,44 +1,81 @@
 'use client';
 
-import Link from 'next/link';
-import { Container, Rocket, Globe, FileText, Lock } from 'lucide-react';
+import { Container, Rocket, Globe, FolderOpen, Monitor } from 'lucide-react';
+import { useClusterSummary } from '@/hooks/useClusterSummary';
+import { ClusterInfoCard } from '@/components/dashboard/ClusterInfoCard';
+import { ResourceCountCard } from '@/components/dashboard/ResourceCountCard';
+import { NodeHealthCard } from '@/components/dashboard/NodeHealthCard';
+import { RecentEventsCard } from '@/components/dashboard/RecentEventsCard';
 
-const QUICK_LINKS = [
-  { label: 'Pods', href: '/resources/core/v1/pods', icon: Container },
-  { label: 'Deployments', href: '/resources/apps/v1/deployments', icon: Rocket },
-  { label: 'Services', href: '/resources/core/v1/services', icon: Globe },
-  { label: 'ConfigMaps', href: '/resources/core/v1/configmaps', icon: FileText },
-  { label: 'Secrets', href: '/resources/core/v1/secrets', icon: Lock },
-];
+export default function DashboardPage() {
+  const { data, isLoading } = useClusterSummary();
 
-export default function OverviewPage() {
+  if (isLoading || !data) {
+    return (
+      <div className="p-8 space-y-6">
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-32 animate-pulse rounded-lg bg-muted" />
+          ))}
+        </div>
+        <div className="h-64 animate-pulse rounded-lg bg-muted" />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold mb-1">Kubosun Console</h1>
-        <p className="text-muted-foreground">
-          AI-native Kubernetes management. Use the sidebar to browse resources or click the bot icon to chat.
+        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Cluster overview — click the bot icon to chat with AI
         </p>
       </div>
 
-      <div>
-        <h2 className="text-lg font-medium mb-3">Quick Links</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          {QUICK_LINKS.map((link) => {
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex flex-col items-center gap-2 rounded-lg border p-4 text-sm hover:bg-accent transition-colors"
-              >
-                <Icon className="h-8 w-8 text-muted-foreground" />
-                {link.label}
-              </Link>
-            );
-          })}
-        </div>
+      {/* Top row: Cluster info + Node health */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <ClusterInfoCard
+          version={data.cluster.version}
+          platform={data.cluster.platform}
+        />
+        <NodeHealthCard
+          total={data.nodes.total}
+          ready={data.nodes.ready}
+          notReady={data.nodes.notReady}
+        />
       </div>
+
+      {/* Resource counts */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <ResourceCountCard
+          label="Pods"
+          count={data.counts.pods ?? 0}
+          icon={Container}
+          href="/resources/core/v1/pods"
+        />
+        <ResourceCountCard
+          label="Deployments"
+          count={data.counts.deployments ?? 0}
+          icon={Rocket}
+          href="/resources/apps/v1/deployments"
+        />
+        <ResourceCountCard
+          label="Services"
+          count={data.counts.services ?? 0}
+          icon={Globe}
+          href="/resources/core/v1/services"
+        />
+        <ResourceCountCard
+          label="Namespaces"
+          count={data.counts.namespaces ?? 0}
+          icon={FolderOpen}
+          href="/resources/core/v1/namespaces"
+        />
+      </div>
+
+      {/* Recent events */}
+      <RecentEventsCard events={data.events} />
     </div>
   );
 }

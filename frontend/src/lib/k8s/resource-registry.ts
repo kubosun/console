@@ -12,6 +12,7 @@ import {
   FileText,
   Globe,
   Lock,
+  Monitor,
   Rocket,
 } from 'lucide-react';
 import type { K8sResource } from './types';
@@ -162,6 +163,54 @@ export const RESOURCE_REGISTRY = new Map<string, ResourceTypeConfig>([
         { id: 'namespace', header: 'Namespace', accessor: (r) => r.metadata.namespace ?? '-', sortable: true },
         { id: 'type', header: 'Type', accessor: (r) => String(r.type ?? '-') },
         { id: 'keys', header: 'Keys', accessor: (r) => String(Object.keys(r.data ?? {}).length) },
+        { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
+      ],
+    },
+  ],
+  [
+    'core/v1/nodes',
+    {
+      group: '',
+      version: 'v1',
+      plural: 'nodes',
+      kind: 'Node',
+      label: 'Node',
+      labelPlural: 'Nodes',
+      namespaced: false,
+      icon: Monitor,
+      columns: [
+        { id: 'name', header: 'Name', accessor: (r) => r.metadata.name, sortable: true },
+        { id: 'status', header: 'Status', accessor: (r) => {
+          const conditions = (r.status?.conditions as Array<{ type: string; status: string }>) ?? [];
+          const ready = conditions.find((c) => c.type === 'Ready');
+          return ready?.status === 'True' ? 'Ready' : 'NotReady';
+        }, sortable: true },
+        { id: 'roles', header: 'Roles', accessor: (r) => {
+          const labels = r.metadata.labels ?? {};
+          return Object.keys(labels)
+            .filter((k) => k.startsWith('node-role.kubernetes.io/'))
+            .map((k) => k.replace('node-role.kubernetes.io/', ''))
+            .join(', ') || 'none';
+        }},
+        { id: 'version', header: 'Version', accessor: (r) => String((r.status as Record<string, unknown>)?.nodeInfo ? ((r.status as Record<string, unknown>).nodeInfo as Record<string, string>).kubeletVersion : '-') },
+        { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
+      ],
+    },
+  ],
+  [
+    'core/v1/namespaces',
+    {
+      group: '',
+      version: 'v1',
+      plural: 'namespaces',
+      kind: 'Namespace',
+      label: 'Namespace',
+      labelPlural: 'Namespaces',
+      namespaced: false,
+      icon: Box,
+      columns: [
+        { id: 'name', header: 'Name', accessor: (r) => r.metadata.name, sortable: true },
+        { id: 'status', header: 'Status', accessor: (r) => String(r.status?.phase ?? '-'), sortable: true },
         { id: 'age', header: 'Age', accessor: (r) => formatAge(r.metadata.creationTimestamp), sortable: true },
       ],
     },

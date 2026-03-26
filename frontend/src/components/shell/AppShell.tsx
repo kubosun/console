@@ -8,14 +8,17 @@ import {
   ChevronDown,
   Container,
   FileText,
+  FolderOpen,
   Globe,
   HardDrive,
   LayoutDashboard,
   Lock,
+  Monitor,
   Network,
   PanelLeft,
   PanelLeftClose,
   Rocket,
+  Server,
   Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -36,6 +39,15 @@ interface NavSection {
 }
 
 const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'cluster',
+    label: 'Cluster',
+    icon: Server,
+    items: [
+      { id: 'nodes', label: 'Nodes', href: '/resources/core/v1/nodes', icon: Monitor },
+      { id: 'namespaces', label: 'Namespaces', href: '/resources/core/v1/namespaces', icon: FolderOpen },
+    ],
+  },
   {
     id: 'workloads',
     label: 'Workloads',

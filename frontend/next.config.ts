@@ -17,6 +17,10 @@ const nextConfig: NextConfig = {
         destination: `${process.env.BACKEND_URL ?? 'http://localhost:8000'}/api/watch/:path*`,
       },
       {
+        source: '/api/cluster/:path*',
+        destination: `${process.env.BACKEND_URL ?? 'http://localhost:8000'}/api/cluster/:path*`,
+      },
+      {
         source: '/api/resources/:path*',
         destination: `${process.env.BACKEND_URL ?? 'http://localhost:8000'}/api/resources/:path*`,
       },
