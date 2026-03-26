@@ -16,6 +16,7 @@ import {
   LogOut,
   Monitor,
   Network,
+  Package,
   PanelLeft,
   PanelLeftClose,
   Rocket,
@@ -83,6 +84,14 @@ const NAV_SECTIONS: NavSection[] = [
     icon: HardDrive,
     items: [
       { id: 'pvcs', label: 'PVCs', href: '/resources/core/v1/persistentvolumeclaims', icon: HardDrive },
+    ],
+  },
+  {
+    id: 'helm',
+    label: 'Helm',
+    icon: Package,
+    items: [
+      { id: 'releases', label: 'Releases', href: '/helm', icon: Package },
     ],
   },
 ];

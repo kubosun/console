@@ -36,3 +36,16 @@ export interface WatchEvent {
   type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'ERROR';
   object: K8sResource;
 }
+
+export interface HelmRelease {
+  name: string;
+  namespace: string;
+  chart: string;
+  chartVersion: string;
+  appVersion: string;
+  status: string;
+  revision: number;
+  deployedAt: string;
+  description: string;
+  values?: Record<string, unknown>;
+}

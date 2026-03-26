@@ -160,6 +160,60 @@ K8S_TOOLS = [
             "properties": {},
         },
     },
+    {
+        "name": "list_helm_releases",
+        "description": "List Helm releases with chart name, version, app version, and status.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "namespace": {
+                    "type": "string",
+                    "description": "Namespace to filter releases (optional, lists all if omitted)",
+                },
+            },
+        },
+    },
+    {
+        "name": "get_helm_release",
+        "description": "Get detailed info about a Helm release including values, chart metadata, and status.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Release name"},
+                "namespace": {"type": "string", "description": "Namespace of the release"},
+            },
+            "required": ["name", "namespace"],
+        },
+    },
+    {
+        "name": "helm_release_history",
+        "description": "Get revision history for a Helm release showing all versions.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Release name"},
+                "namespace": {"type": "string", "description": "Namespace of the release"},
+            },
+            "required": ["name", "namespace"],
+        },
+    },
+    {
+        "name": "uninstall_helm_release",
+        "description": "Uninstall a Helm release by deleting its release Secrets. Use dry_run=true first to preview.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Release name"},
+                "namespace": {"type": "string", "description": "Namespace of the release"},
+                "dry_run": {
+                    "type": "boolean",
+                    "description": "If true (default), preview without deleting",
+                    "default": True,
+                },
+            },
+            "required": ["name", "namespace"],
+        },
+    },
 ]
 
 
@@ -201,6 +255,16 @@ async def _dispatch_tool(
         return await _check_permissions(user_token=user_token, **tool_input)
     elif tool_name == "list_namespaces":
         return await _list_namespaces(client)
+    elif tool_name == "list_helm_releases":
+        return await _list_helm_releases(tool_input.get("namespace"), user_token)
+    elif tool_name == "get_helm_release":
+        return await _get_helm_release(tool_input["name"], tool_input["namespace"], user_token)
+    elif tool_name == "helm_release_history":
+        return await _helm_release_history(tool_input["name"], tool_input["namespace"], user_token)
+    elif tool_name == "uninstall_helm_release":
+        return await _uninstall_helm_release(
+            tool_input["name"], tool_input["namespace"], tool_input.get("dry_run", True), user_token
+        )
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
@@ -398,3 +462,51 @@ def _extract_status(resource: dict) -> str:
         if c.get("type") == "Available":
             return "Available" if c.get("status") == "True" else "Unavailable"
     return "Unknown"
+
+
+# --- Helm tool implementations ---
+
+
+async def _list_helm_releases(
+    namespace: str | None = None, user_token: str | None = None
+) -> dict:
+    from app.services.helm_releases import list_releases
+
+    releases = await list_releases(namespace=namespace, user_token=user_token)
+    return {"count": len(releases), "releases": releases}
+
+
+async def _get_helm_release(
+    name: str, namespace: str, user_token: str | None = None
+) -> dict:
+    from app.services.helm_releases import get_release
+
+    return await get_release(name, namespace, user_token=user_token)
+
+
+async def _helm_release_history(
+    name: str, namespace: str, user_token: str | None = None
+) -> dict:
+    from app.services.helm_releases import get_release_history
+
+    revisions = await get_release_history(name, namespace, user_token=user_token)
+    return {"count": len(revisions), "revisions": revisions}
+
+
+async def _uninstall_helm_release(
+    name: str, namespace: str, dry_run: bool = True, user_token: str | None = None
+) -> dict:
+    if dry_run:
+        from app.services.helm_releases import get_release_history
+
+        revisions = await get_release_history(name, namespace, user_token=user_token)
+        return {
+            "action": "would delete (dry-run)",
+            "name": name,
+            "namespace": namespace,
+            "revisions": len(revisions),
+        }
+
+    from app.services.helm_releases import delete_release
+
+    return await delete_release(name, namespace, user_token=user_token)
