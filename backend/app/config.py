@@ -21,6 +21,17 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # OAuth2/OIDC (optional — falls back to kubeconfig if not set)
+    oauth_enabled: bool = False
+    oauth_provider: str = "openshift"  # "openshift" or "oidc"
+    oauth_client_id: str = ""
+    oauth_client_secret: str = ""
+    oauth_issuer_url: str = ""
+    oauth_redirect_uri: str = "http://localhost:3000/auth/callback"
+    oauth_scopes: str = "user:full"
+    session_secret: str = "change-me-in-production"
+    session_max_age: int = 86400  # 24 hours
+
     model_config = {"env_prefix": "KUBOSUN_", "env_file": ".env.local"}
 
 

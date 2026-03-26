@@ -12,6 +12,7 @@ async def kubernetes_proxy(path: str, request: Request) -> Response:
     """Proxy requests to the Kubernetes API server."""
     body = await request.body() if request.method in ("POST", "PUT", "PATCH") else None
     content_type = request.headers.get("content-type")
+    user_token = getattr(request.state, "user_token", None)
 
     response = await proxy_request(
         method=request.method,
@@ -19,6 +20,7 @@ async def kubernetes_proxy(path: str, request: Request) -> Response:
         query_params=str(request.query_params),
         body=body,
         content_type=content_type,
+        user_token=user_token,
     )
 
     # Filter response headers

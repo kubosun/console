@@ -17,13 +17,18 @@ HOP_BY_HOP_HEADERS = {
 }
 
 
-def _get_proxy_client() -> tuple[str, dict[str, str], str | bool]:
+def _get_proxy_client(
+    user_token: str | None = None,
+) -> tuple[str, dict[str, str], str | bool]:
     """Get the K8s API server URL, auth headers, and CA cert path."""
     cfg = get_k8s_config()
     base_url = cfg.host
     headers: dict[str, str] = {}
 
-    if cfg.api_key and cfg.api_key.get("authorization"):
+    if user_token:
+        # Per-user OAuth token (production mode)
+        headers["Authorization"] = f"Bearer {user_token}"
+    elif cfg.api_key and cfg.api_key.get("authorization"):
         headers["Authorization"] = cfg.api_key["authorization"]
     elif cfg.api_key and cfg.api_key.get("BearerToken"):
         headers["Authorization"] = f"Bearer {cfg.api_key['BearerToken']}"
@@ -41,9 +46,10 @@ async def proxy_request(
     query_params: str = "",
     body: bytes | None = None,
     content_type: str | None = None,
+    user_token: str | None = None,
 ) -> httpx.Response:
     """Proxy an HTTP request to the Kubernetes API server."""
-    base_url, auth_headers, ssl_ca_cert = _get_proxy_client()
+    base_url, auth_headers, ssl_ca_cert = _get_proxy_client(user_token)
     url = f"{base_url}/{path}"
     if query_params:
         url = f"{url}?{query_params}"

@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: '/auth/:path*',
+        destination: `${process.env.BACKEND_URL ?? 'http://localhost:8000'}/auth/:path*`,
+      },
+      {
         source: '/api/kubernetes/:path*',
         destination: `${process.env.BACKEND_URL ?? 'http://localhost:8000'}/api/kubernetes/:path*`,
       },

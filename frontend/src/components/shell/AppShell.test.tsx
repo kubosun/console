@@ -11,6 +11,10 @@ vi.mock('./NamespaceSelector', () => ({
   NamespaceSelector: () => <div data-testid="ns-selector">NS</div>,
 }));
 
+vi.mock('@/hooks/useUser', () => ({
+  useUser: () => ({ data: { authenticated: false, oauth_enabled: false } }),
+}));
+
 describe('AppShell', () => {
   it('renders brand and children', () => {
     const { container } = render(

@@ -13,6 +13,7 @@ import {
   HardDrive,
   LayoutDashboard,
   Lock,
+  LogOut,
   Monitor,
   Network,
   PanelLeft,
@@ -20,8 +21,10 @@ import {
   Rocket,
   Server,
   Settings,
+  User,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/hooks/useUser';
 import { NamespaceSelector } from './NamespaceSelector';
 
 interface NavItem {
@@ -198,6 +201,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
           <NamespaceSelector />
           <div className="flex-1" />
+          <UserMenu />
         </header>
 
         {/* Page content */}
@@ -205,6 +209,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+    </div>
+  );
+}
+
+function UserMenu() {
+  const { data } = useUser();
+
+  if (!data?.authenticated) return null;
+
+  const handleLogout = async () => {
+    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    window.location.href = '/auth/login';
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <User className="h-4 w-4" />
+        <span>{data.user?.name ?? 'User'}</span>
+      </div>
+      <button
+        onClick={handleLogout}
+        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        aria-label="Logout"
+      >
+        <LogOut className="h-4 w-4" />
+      </button>
     </div>
   );
 }
