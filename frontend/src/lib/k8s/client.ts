@@ -45,6 +45,36 @@ export async function k8sGet<T = unknown>(
   return k8sFetch(`${basePath}/${nsPath}${plural}/${name}`);
 }
 
+export async function k8sUpdate<T = unknown>(
+  group: string,
+  version: string,
+  plural: string,
+  name: string,
+  body: unknown,
+  namespace?: string,
+): Promise<T> {
+  const basePath = group ? `apis/${group}/${version}` : `api/${version}`;
+  const nsPath = namespace ? `namespaces/${namespace}/` : '';
+  return k8sFetch(`${basePath}/${nsPath}${plural}/${name}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function k8sDelete(
+  group: string,
+  version: string,
+  plural: string,
+  name: string,
+  namespace?: string,
+): Promise<void> {
+  const basePath = group ? `apis/${group}/${version}` : `api/${version}`;
+  const nsPath = namespace ? `namespaces/${namespace}/` : '';
+  await k8sFetch(`${basePath}/${nsPath}${plural}/${name}`, {
+    method: 'DELETE',
+  });
+}
+
 export interface ResourceModel {
   apiGroup: string;
   apiVersion: string;

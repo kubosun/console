@@ -18,6 +18,9 @@ export interface K8sResource {
   metadata: K8sMetadata;
   spec?: Record<string, unknown>;
   status?: Record<string, unknown>;
+  data?: Record<string, string>;
+  type?: string;
+  [key: string]: unknown;
 }
 
 export interface K8sResourceList {

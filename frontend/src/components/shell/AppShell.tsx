@@ -1,26 +1,92 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
   Box,
-  Network,
+  ChevronDown,
+  Container,
+  FileText,
+  Globe,
   HardDrive,
-  PanelLeftClose,
+  LayoutDashboard,
+  Lock,
+  Network,
   PanelLeft,
+  PanelLeftClose,
+  Rocket,
+  Settings,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { NamespaceSelector } from './NamespaceSelector';
 
-const NAV_ITEMS = [
-  { id: 'overview', label: 'Overview', href: '/', icon: LayoutDashboard },
-  { id: 'workloads', label: 'Workloads', href: '/resources/workloads', icon: Box },
-  { id: 'networking', label: 'Networking', href: '/resources/networking', icon: Network },
-  { id: 'storage', label: 'Storage', href: '/resources/storage', icon: HardDrive },
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface NavSection {
+  id: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: 'workloads',
+    label: 'Workloads',
+    icon: Box,
+    items: [
+      { id: 'pods', label: 'Pods', href: '/resources/core/v1/pods', icon: Container },
+      { id: 'deployments', label: 'Deployments', href: '/resources/apps/v1/deployments', icon: Rocket },
+    ],
+  },
+  {
+    id: 'networking',
+    label: 'Networking',
+    icon: Network,
+    items: [
+      { id: 'services', label: 'Services', href: '/resources/core/v1/services', icon: Globe },
+    ],
+  },
+  {
+    id: 'configuration',
+    label: 'Configuration',
+    icon: Settings,
+    items: [
+      { id: 'configmaps', label: 'ConfigMaps', href: '/resources/core/v1/configmaps', icon: FileText },
+      { id: 'secrets', label: 'Secrets', href: '/resources/core/v1/secrets', icon: Lock },
+    ],
+  },
+  {
+    id: 'storage',
+    label: 'Storage',
+    icon: HardDrive,
+    items: [
+      { id: 'pvcs', label: 'PVCs', href: '/resources/core/v1/persistentvolumeclaims', icon: HardDrive },
+    ],
+  },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [activeItem, setActiveItem] = useState('overview');
+  const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(NAV_SECTIONS.map((s) => s.id)),
+  );
+
+  const toggleSection = (id: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -41,27 +107,65 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-2">
-          <ul className="space-y-1">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.id}>
-                  <button
-                    onClick={() => setActiveItem(item.id)}
+          {/* Overview */}
+          <Link
+            href="/"
+            className={cn(
+              'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors mb-1',
+              pathname === '/'
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+            )}
+          >
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            Overview
+          </Link>
+
+          {/* Sections */}
+          {NAV_SECTIONS.map((section) => {
+            const SectionIcon = section.icon;
+            const isExpanded = expandedSections.has(section.id);
+            return (
+              <div key={section.id} className="mt-1">
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
+                >
+                  <SectionIcon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 text-left">{section.label}</span>
+                  <ChevronDown
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
-                      activeItem === item.id
-                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                        : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+                      'h-3 w-3 transition-transform',
+                      !isExpanded && '-rotate-90',
                     )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                  />
+                </button>
+                {isExpanded && (
+                  <div className="ml-4 space-y-0.5">
+                    {section.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = pathname.startsWith(item.href);
+                      return (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          className={cn(
+                            'flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors',
+                            isActive
+                              ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                              : 'text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground',
+                          )}
+                        >
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
       </aside>
 
@@ -80,8 +184,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <PanelLeft className="h-5 w-5" />
             )}
           </button>
+          <NamespaceSelector />
           <div className="flex-1" />
-          {/* Namespace selector, user menu, AI toggle will go here */}
         </header>
 
         {/* Page content */}

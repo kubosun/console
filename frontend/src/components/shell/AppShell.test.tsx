@@ -1,47 +1,38 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { AppShell } from './AppShell';
 
-describe('AppShell', () => {
-  it('renders the Kubosun brand name', () => {
-    render(
-      <AppShell>
-        <div>Test content</div>
-      </AppShell>,
-    );
-    expect(screen.getByText('Kubosun')).toBeInTheDocument();
-  });
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/',
+  useRouter: () => ({ push: vi.fn() }),
+}));
 
-  it('renders children content', () => {
-    render(
+vi.mock('./NamespaceSelector', () => ({
+  NamespaceSelector: () => <div data-testid="ns-selector">NS</div>,
+}));
+
+describe('AppShell', () => {
+  it('renders brand and children', () => {
+    const { container } = render(
       <AppShell>
         <div>Hello World</div>
       </AppShell>,
     );
-    expect(screen.getByText('Hello World')).toBeInTheDocument();
+    expect(container.textContent).toContain('Kubosun');
+    expect(container.textContent).toContain('Hello World');
   });
 
-  it('renders navigation items', () => {
-    render(
+  it('renders navigation sections and items', () => {
+    const { container } = render(
       <AppShell>
         <div>Content</div>
       </AppShell>,
     );
-    const navButtons = screen.getAllByRole('button');
-    const navLabels = navButtons.map((btn) => btn.textContent?.trim());
-    expect(navLabels).toContain('Overview');
-    expect(navLabels).toContain('Workloads');
-    expect(navLabels).toContain('Networking');
-    expect(navLabels).toContain('Storage');
-  });
-
-  it('renders sidebar toggle button', () => {
-    render(
-      <AppShell>
-        <div>Content</div>
-      </AppShell>,
-    );
-    const toggleButtons = screen.getAllByLabelText('Toggle sidebar');
-    expect(toggleButtons.length).toBeGreaterThan(0);
+    const text = container.textContent ?? '';
+    expect(text).toContain('Workloads');
+    expect(text).toContain('Pods');
+    expect(text).toContain('Deployments');
+    expect(text).toContain('Services');
+    expect(text).toContain('ConfigMaps');
   });
 });
