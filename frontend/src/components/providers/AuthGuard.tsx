@@ -4,7 +4,7 @@ import { useUser } from '@/hooks/useUser';
 import { Loader2 } from 'lucide-react';
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { data, isLoading } = useUser();
+  const { data, isLoading, isError } = useUser();
 
   // Loading state
   if (isLoading) {
@@ -15,13 +15,18 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // OAuth not enabled — allow access without auth (dev mode)
-  if (data?.oauth_enabled === false) {
+  // If fetch failed (backend down) — allow access (fail open for dev)
+  if (isError || !data) {
     return <>{children}</>;
   }
 
-  // Not authenticated — redirect to login
-  if (!data?.authenticated) {
+  // OAuth not enabled — allow access without auth (dev mode)
+  if (data.oauth_enabled === false || !data.authenticated === undefined) {
+    return <>{children}</>;
+  }
+
+  // OAuth enabled but not authenticated — redirect to login
+  if (data.oauth_enabled !== false && !data.authenticated) {
     if (typeof window !== 'undefined') {
       window.location.href = '/auth/login';
     }
@@ -32,6 +37,6 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Authenticated
+  // Authenticated or dev mode
   return <>{children}</>;
 }
