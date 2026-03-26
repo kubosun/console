@@ -224,7 +224,7 @@ K8S_TOOLS = [
                 "namespace": {"type": "string", "description": "Target namespace"},
                 "repo_url": {
                     "type": "string",
-                    "description": "Helm chart repository URL (e.g. https://charts.bitnami.com/bitnami)",
+                    "description": "Helm chart repository URL. Use OCI for Bitnami: oci://registry-1.docker.io/bitnamicharts",
                 },
                 "chart": {"type": "string", "description": "Chart name (e.g. nginx)"},
                 "version": {

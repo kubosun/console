@@ -7,7 +7,7 @@ import { ArrowLeft, Package } from 'lucide-react';
 import { useActiveNamespace } from '@/stores/namespace-store';
 
 const REPO_PRESETS = [
-  { label: 'Bitnami', url: 'https://charts.bitnami.com/bitnami' },
+  { label: 'Bitnami', url: 'oci://registry-1.docker.io/bitnamicharts' },
   { label: 'Ingress NGINX', url: 'https://kubernetes.github.io/ingress-nginx' },
   { label: 'Jetstack (cert-manager)', url: 'https://charts.jetstack.io' },
 ];

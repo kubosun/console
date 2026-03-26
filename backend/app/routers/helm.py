@@ -28,8 +28,11 @@ router = APIRouter(prefix="/api/helm", tags=["helm"])
 async def helm_list_releases(request: Request, namespace: str | None = None) -> list[dict]:
     """List all Helm releases, optionally filtered by namespace."""
     user_token = getattr(request.state, "user_token", None)
-    releases = await list_releases(namespace=namespace, user_token=user_token)
-    return releases
+    try:
+        releases = await list_releases(namespace=namespace, user_token=user_token)
+        return releases
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 @router.get("/releases/{namespace}/{name}")

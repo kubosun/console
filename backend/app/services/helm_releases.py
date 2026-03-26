@@ -201,12 +201,16 @@ async def ensure_helm_repository(
     except Exception:
         pass
 
-    # Create it
+    # Create it — detect OCI repos by URL scheme
+    is_oci = repo_url.startswith("oci://")
+    spec: dict[str, Any] = {"interval": "15m", "url": repo_url}
+    if is_oci:
+        spec["type"] = "oci"
     manifest = {
         "apiVersion": "source.toolkit.fluxcd.io/v1",
         "kind": "HelmRepository",
         "metadata": {"name": repo_name, "namespace": namespace},
-        "spec": {"interval": "15m", "url": repo_url},
+        "spec": spec,
     }
     client.call_api(
         f"/apis/source.toolkit.fluxcd.io/v1"
