@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Activity,
+  Bell,
   Box,
   ChevronDown,
   Container,
@@ -79,6 +81,15 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'configmaps', label: 'ConfigMaps', href: '/resources/core/v1/configmaps', icon: FileText },
       { id: 'secrets', label: 'Secrets', href: '/resources/core/v1/secrets', icon: Lock },
+    ],
+  },
+  {
+    id: 'observe',
+    label: 'Observe',
+    icon: Activity,
+    items: [
+      { id: 'events', label: 'Events', href: '/events', icon: Activity },
+      { id: 'alerts', label: 'Alerts', href: '/alerts', icon: Bell },
     ],
   },
   {

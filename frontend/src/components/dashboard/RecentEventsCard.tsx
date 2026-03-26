@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatAge } from '@/lib/k8s/resource-utils';
@@ -30,8 +31,11 @@ export function RecentEventsCard({ events }: RecentEventsCardProps) {
 
   return (
     <div className="rounded-lg border">
-      <div className="px-5 py-3 border-b">
+      <div className="flex items-center justify-between px-5 py-3 border-b">
         <h3 className="text-sm font-medium">Recent Events</h3>
+        <Link href="/events" className="text-xs text-primary hover:underline">
+          View all
+        </Link>
       </div>
       <div className="max-h-80 overflow-y-auto">
         {events.map((event, i) => {

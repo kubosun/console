@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
       { source: '/api/cluster/:path*', destination: `${backendUrl}/api/cluster/:path*` },
       { source: '/api/helm/:path*', destination: `${backendUrl}/api/helm/:path*` },
       { source: '/api/resources/:path*', destination: `${backendUrl}/api/resources/:path*` },
+      { source: '/api/monitoring/:path*', destination: `${backendUrl}/api/monitoring/:path*` },
+      { source: '/api/events/:path*', destination: `${backendUrl}/api/events/:path*` },
       { source: '/api/health/backend', destination: `${backendUrl}/health` },
     ];
   },

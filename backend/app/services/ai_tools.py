@@ -215,6 +215,58 @@ K8S_TOOLS = [
         },
     },
     {
+        "name": "get_pod_metrics",
+        "description": "Get current CPU and memory usage for a pod's containers via the Metrics API.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Pod name"},
+                "namespace": {"type": "string", "description": "Namespace"},
+            },
+            "required": ["name", "namespace"],
+        },
+    },
+    {
+        "name": "get_node_metrics",
+        "description": "Get current CPU and memory usage for a node via the Metrics API.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Node name"},
+            },
+            "required": ["name"],
+        },
+    },
+    {
+        "name": "query_prometheus",
+        "description": "Run a PromQL query against Prometheus. Returns current metric values.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "PromQL expression"},
+                "time": {"type": "string", "description": "Evaluation time (RFC3339 or Unix, optional)"},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "diagnose_pod",
+        "description": "Comprehensive pod diagnosis: gathers container statuses, recent logs (current and previous), events, and resource metrics. Use this when investigating why a pod is failing, crashing, or misbehaving.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Pod name"},
+                "namespace": {"type": "string", "description": "Namespace"},
+                "tail_lines": {
+                    "type": "integer",
+                    "description": "Number of log lines per container (default 50)",
+                    "default": 50,
+                },
+            },
+            "required": ["name", "namespace"],
+        },
+    },
+    {
         "name": "install_helm_release",
         "description": "Install a Helm chart by creating Flux HelmRepository and HelmRelease CRs.",
         "input_schema": {
@@ -290,6 +342,21 @@ async def _dispatch_tool(
         return await _uninstall_helm_release(
             tool_input["name"], tool_input["namespace"], tool_input.get("dry_run", True), user_token
         )
+    elif tool_name == "get_pod_metrics":
+        return await _get_pod_metrics(tool_input["name"], tool_input["namespace"], client)
+    elif tool_name == "get_node_metrics":
+        return await _get_node_metrics(tool_input["name"], client)
+    elif tool_name == "query_prometheus":
+        return await _query_prometheus(
+            tool_input["query"], tool_input.get("time"), user_token
+        )
+    elif tool_name == "diagnose_pod":
+        return await _diagnose_pod(
+            tool_input["name"],
+            tool_input["namespace"],
+            tool_input.get("tail_lines", 50),
+            client,
+        )
     elif tool_name == "install_helm_release":
         return await _install_helm_release(
             tool_input["name"],
@@ -344,6 +411,7 @@ async def _get_pod_logs(
     namespace: str,
     container: str | None = None,
     tail_lines: int = 100,
+    previous: bool = False,
     client: ApiClient | None = None,
 ) -> dict:
     from kubernetes import client as k8s_client
@@ -352,6 +420,8 @@ async def _get_pod_logs(
     kwargs: dict[str, Any] = {"tail_lines": tail_lines}
     if container:
         kwargs["container"] = container
+    if previous:
+        kwargs["previous"] = True
     logs = core.read_namespaced_pod_log(name, namespace, **kwargs)
     return {"logs": logs}
 
@@ -497,6 +567,189 @@ def _extract_status(resource: dict) -> str:
         if c.get("type") == "Available":
             return "Available" if c.get("status") == "True" else "Unavailable"
     return "Unknown"
+
+
+# --- Monitoring + diagnostics tool implementations ---
+
+
+async def _get_pod_metrics(
+    name: str, namespace: str, api_client: ApiClient | None = None
+) -> dict:
+    api_client = api_client or get_api_client()
+    try:
+        response = api_client.call_api(
+            f"/apis/metrics.k8s.io/v1beta1/namespaces/{namespace}/pods/{name}",
+            "GET",
+            response_type="object",
+            auth_settings=["BearerToken"],
+        )
+        data = response[0]
+        containers = data.get("containers", [])
+        return {
+            "pod": name,
+            "namespace": namespace,
+            "timestamp": data.get("timestamp", ""),
+            "containers": [
+                {
+                    "name": c.get("name", ""),
+                    "cpu": c.get("usage", {}).get("cpu", "0"),
+                    "memory": c.get("usage", {}).get("memory", "0"),
+                }
+                for c in containers
+            ],
+        }
+    except Exception as e:
+        return {"error": f"Metrics unavailable: {e}"}
+
+
+async def _get_node_metrics(
+    name: str, api_client: ApiClient | None = None
+) -> dict:
+    api_client = api_client or get_api_client()
+    try:
+        response = api_client.call_api(
+            f"/apis/metrics.k8s.io/v1beta1/nodes/{name}",
+            "GET",
+            response_type="object",
+            auth_settings=["BearerToken"],
+        )
+        data = response[0]
+        usage = data.get("usage", {})
+        return {
+            "node": name,
+            "timestamp": data.get("timestamp", ""),
+            "cpu": usage.get("cpu", "0"),
+            "memory": usage.get("memory", "0"),
+        }
+    except Exception as e:
+        return {"error": f"Metrics unavailable: {e}"}
+
+
+async def _query_prometheus(
+    query: str, time: str | None = None, user_token: str | None = None
+) -> dict:
+    import json
+
+    from app.services.monitoring_proxy import proxy_monitoring_request
+
+    params = f"query={query}"
+    if time:
+        params += f"&time={time}"
+    try:
+        resp = await proxy_monitoring_request(
+            target="prometheus",
+            method="GET",
+            path="api/v1/query",
+            query_params=params,
+            user_token=user_token,
+        )
+        return json.loads(resp.content)
+    except Exception as e:
+        return {"error": f"Prometheus query failed: {e}"}
+
+
+async def _diagnose_pod(
+    name: str,
+    namespace: str,
+    tail_lines: int = 50,
+    client: ApiClient | None = None,
+) -> dict:
+    """Comprehensive pod diagnosis — gathers status, logs, events, and metrics."""
+    client = client or get_api_client()
+
+    # 1. Get pod spec + status
+    try:
+        pod = await _get_resource(f"api/v1/namespaces/{namespace}/pods/{name}", client)
+    except Exception as e:
+        return {"error": f"Pod not found: {e}"}
+
+    status = pod.get("status", {})
+    phase = status.get("phase", "Unknown")
+
+    # 2. Extract container diagnostics
+    container_diags = []
+    all_statuses = (status.get("initContainerStatuses") or []) + (
+        status.get("containerStatuses") or []
+    )
+    for cs in all_statuses:
+        diag: dict[str, Any] = {
+            "name": cs.get("name", ""),
+            "ready": cs.get("ready", False),
+            "restartCount": cs.get("restartCount", 0),
+            "started": cs.get("started", False),
+        }
+        state = cs.get("state", {})
+        if "waiting" in state:
+            diag["state"] = "waiting"
+            diag["reason"] = state["waiting"].get("reason", "")
+            diag["message"] = state["waiting"].get("message", "")
+        elif "terminated" in state:
+            diag["state"] = "terminated"
+            diag["reason"] = state["terminated"].get("reason", "")
+            diag["exitCode"] = state["terminated"].get("exitCode", -1)
+            diag["message"] = state["terminated"].get("message", "")
+        elif "running" in state:
+            diag["state"] = "running"
+        last = cs.get("lastState", {})
+        if "terminated" in last:
+            diag["lastTermination"] = {
+                "reason": last["terminated"].get("reason", ""),
+                "exitCode": last["terminated"].get("exitCode", -1),
+                "message": last["terminated"].get("message", ""),
+                "finishedAt": last["terminated"].get("finishedAt", ""),
+            }
+        container_diags.append(diag)
+
+    # 3. Get events
+    try:
+        events = await _get_events(
+            namespace=namespace, involved_object=name, limit=30, client=client
+        )
+    except Exception:
+        events = {"events": [], "count": 0}
+
+    # 4. Get logs for each container
+    logs: dict[str, str] = {}
+    for cs in all_statuses:
+        cname = cs.get("name", "")
+        try:
+            result = await _get_pod_logs(
+                name, namespace, container=cname, tail_lines=tail_lines, client=client
+            )
+            logs[cname] = result.get("logs", "")
+        except Exception:
+            logs[cname] = "(unable to fetch logs)"
+        # Get previous logs if container has restarted
+        if cs.get("restartCount", 0) > 0:
+            try:
+                result = await _get_pod_logs(
+                    name,
+                    namespace,
+                    container=cname,
+                    tail_lines=tail_lines,
+                    previous=True,
+                    client=client,
+                )
+                logs[f"{cname}_previous"] = result.get("logs", "")
+            except Exception:
+                pass
+
+    # 5. Get metrics (best effort)
+    try:
+        metrics = await _get_pod_metrics(name, namespace, client)
+    except Exception:
+        metrics = {"error": "metrics unavailable"}
+
+    return {
+        "pod": name,
+        "namespace": namespace,
+        "phase": phase,
+        "conditions": status.get("conditions", []),
+        "containerDiagnostics": container_diags,
+        "events": events,
+        "logs": logs,
+        "metrics": metrics,
+    }
 
 
 # --- Helm tool implementations ---

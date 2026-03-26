@@ -5,6 +5,8 @@ import { useClusterSummary } from '@/hooks/useClusterSummary';
 import { ClusterInfoCard } from '@/components/dashboard/ClusterInfoCard';
 import { ResourceCountCard } from '@/components/dashboard/ResourceCountCard';
 import { NodeHealthCard } from '@/components/dashboard/NodeHealthCard';
+import { ClusterMetricsCard } from '@/components/dashboard/ClusterMetricsCard';
+import { AlertsCard } from '@/components/dashboard/AlertsCard';
 import { RecentEventsCard } from '@/components/dashboard/RecentEventsCard';
 
 export default function DashboardPage() {
@@ -46,6 +48,9 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Cluster metrics */}
+      <ClusterMetricsCard capacity={data.capacity} />
+
       {/* Resource counts */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <ResourceCountCard
@@ -73,6 +78,9 @@ export default function DashboardPage() {
           href="/resources/core/v1/namespaces"
         />
       </div>
+
+      {/* Alerts */}
+      <AlertsCard />
 
       {/* Recent events */}
       <RecentEventsCard events={data.events} />

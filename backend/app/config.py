@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     ai_model: str = "claude-sonnet-4-20250514"
 
+    # Monitoring
+    prometheus_url: str = "https://thanos-querier.openshift-monitoring.svc:9091"
+    alertmanager_url: str = "https://alertmanager-main.openshift-monitoring.svc:9093"
+    monitoring_enabled: bool = True
+
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]
 

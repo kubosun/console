@@ -10,6 +10,28 @@ from app.services.k8s_client import get_api_client
 router = APIRouter(prefix="/api/cluster", tags=["cluster"])
 
 
+def _parse_cpu(value: str) -> int:
+    """Parse K8s CPU quantity to millicores."""
+    if value.endswith("m"):
+        return int(value[:-1])
+    return int(float(value) * 1000)
+
+
+def _parse_memory(value: str) -> int:
+    """Parse K8s memory quantity to bytes."""
+    suffixes = {"Ki": 1024, "Mi": 1024**2, "Gi": 1024**3, "Ti": 1024**4}
+    for suffix, multiplier in suffixes.items():
+        if value.endswith(suffix):
+            return int(float(value[: -len(suffix)]) * multiplier)
+    if value.endswith("k"):
+        return int(float(value[:-1]) * 1000)
+    if value.endswith("M"):
+        return int(float(value[:-1]) * 1000**2)
+    if value.endswith("G"):
+        return int(float(value[:-1]) * 1000**3)
+    return int(value)
+
+
 def _get_client(request: Request) -> ApiClient:
     """Get an API client using the user's token if available."""
     user_token = getattr(request.state, "user_token", None)
@@ -45,19 +67,41 @@ async def cluster_summary(request: Request) -> dict:
     except Exception:
         cluster_info = {"version": "unknown", "platform": "unknown"}
 
-    # Node health
+    # Node health and capacity
+    capacity = {
+        "totalCPU": "0",
+        "totalMemory": "0",
+        "allocatableCPU": "0",
+        "allocatableMemory": "0",
+    }
     try:
         nodes = core.list_node()
         node_count = len(nodes.items)
         ready_nodes = 0
+        total_cpu = 0
+        total_memory = 0
+        allocatable_cpu = 0
+        allocatable_memory = 0
         for node in nodes.items:
             for condition in node.status.conditions or []:
                 if condition.type == "Ready" and condition.status == "True":
                     ready_nodes += 1
+            if node.status.capacity:
+                total_cpu += _parse_cpu(node.status.capacity.get("cpu", "0"))
+                total_memory += _parse_memory(node.status.capacity.get("memory", "0"))
+            if node.status.allocatable:
+                allocatable_cpu += _parse_cpu(node.status.allocatable.get("cpu", "0"))
+                allocatable_memory += _parse_memory(node.status.allocatable.get("memory", "0"))
         node_health = {
             "total": node_count,
             "ready": ready_nodes,
             "notReady": node_count - ready_nodes,
+        }
+        capacity = {
+            "totalCPU": str(total_cpu),
+            "totalMemory": str(total_memory),
+            "allocatableCPU": str(allocatable_cpu),
+            "allocatableMemory": str(allocatable_memory),
         }
     except Exception:
         node_health = {"total": 0, "ready": 0, "notReady": 0}
@@ -124,6 +168,7 @@ async def cluster_summary(request: Request) -> dict:
     return {
         "cluster": cluster_info,
         "nodes": node_health,
+        "capacity": capacity,
         "counts": counts,
         "events": recent_events,
         "timestamp": datetime.now(UTC).isoformat(),

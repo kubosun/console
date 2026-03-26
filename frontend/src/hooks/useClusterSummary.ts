@@ -7,6 +7,12 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 export interface ClusterSummary {
   cluster: { version: string; platform: string };
   nodes: { total: number; ready: number; notReady: number };
+  capacity: {
+    totalCPU: string;
+    totalMemory: string;
+    allocatableCPU: string;
+    allocatableMemory: string;
+  };
   counts: Record<string, number>;
   events: Array<{
     type: string;
