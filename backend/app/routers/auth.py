@@ -134,8 +134,8 @@ async def get_current_user(request: Request):
 async def _get_user_info(access_token: str) -> dict[str, str]:
     """Fetch user info using the access token."""
     if settings.oauth_provider == "openshift":
-        # OpenShift: query the User API
-        url = f"{settings.oauth_issuer_url}/apis/user.openshift.io/v1/users/~"
+        # OpenShift: query the User API (on the K8s API server, not OAuth server)
+        url = f"{settings.k8s_api_server}/apis/user.openshift.io/v1/users/~"
         async with httpx.AsyncClient(verify=False) as client:
             resp = await client.get(url, headers={"Authorization": f"Bearer {access_token}"})
         if resp.status_code == 200:
