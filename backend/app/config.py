@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Monitoring
     prometheus_url: str = "https://thanos-querier.openshift-monitoring.svc:9091"
-    alertmanager_url: str = "https://alertmanager-main.openshift-monitoring.svc:9093"
+    alertmanager_url: str = "https://alertmanager-main.openshift-monitoring.svc:9094"
     monitoring_enabled: bool = True
 
     # CORS
