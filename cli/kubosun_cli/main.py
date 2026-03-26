@@ -253,5 +253,85 @@ def status(
             console.print(f"[red]Health check failed:[/red] {e}")
 
 
+@app.command()
+def destroy(
+    namespace: str = typer.Option("kubosun", help="Target namespace"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+    delete_namespace: bool = typer.Option(False, help="Also delete the namespace/project"),
+):
+    """Destroy deployment — remove all Kubosun resources from the cluster."""
+
+    user = cluster.check_login()
+    console.print(f"Logged in as [bold]{user}[/bold]")
+
+    # Confirmation
+    console.print()
+    console.print(f"[bold red]This will delete all Kubosun resources in namespace '{namespace}':[/bold red]")
+    console.print("  - Route, Services, Deployments")
+    console.print("  - BuildConfigs, ImageStreams")
+    console.print("  - Secrets, ServiceAccount")
+    console.print("  - OAuthClient (cluster-scoped)")
+    console.print("  - RBAC ClusterRoleBinding")
+    if delete_namespace:
+        console.print(f"  - [bold red]Namespace '{namespace}' itself[/bold red]")
+    console.print()
+
+    if not yes:
+        confirmed = typer.confirm("Are you sure you want to proceed?", default=False)
+        if not confirmed:
+            console.print("Aborted.")
+            raise typer.Exit(0)
+
+    # Delete in reverse order of setup
+    steps = [
+        ("Route", "route", "kubosun", namespace),
+        ("Frontend Service", "service", "kubosun-frontend", namespace),
+        ("Backend Service", "service", "kubosun-backend", namespace),
+        ("Frontend Deployment", "deployment", "kubosun-frontend", namespace),
+        ("Backend Deployment", "deployment", "kubosun-backend", namespace),
+        ("Frontend BuildConfig", "buildconfig", "kubosun-frontend", namespace),
+        ("Backend BuildConfig", "buildconfig", "kubosun-backend", namespace),
+        ("Frontend ImageStream", "imagestream", "kubosun-frontend", namespace),
+        ("Backend ImageStream", "imagestream", "kubosun-backend", namespace),
+        ("Secrets", "secret", "kubosun-secrets", namespace),
+        ("ServiceAccount", "serviceaccount", "kubosun", namespace),
+    ]
+
+    for label, kind, name, ns in steps:
+        deleted = cluster.delete_resource(kind, name, ns)
+        if deleted:
+            console.print(f"  [red]Deleted[/red] {label}")
+        else:
+            console.print(f"  [dim]Skipped[/dim] {label} (not found)")
+
+    # Remove RBAC
+    try:
+        cluster.run_oc([
+            "adm", "policy", "remove-cluster-role-from-user", "cluster-reader",
+            f"system:serviceaccount:{namespace}:kubosun",
+        ], check=False)
+        console.print(f"  [red]Removed[/red] RBAC cluster-reader binding")
+    except subprocess.CalledProcessError:
+        console.print(f"  [dim]Skipped[/dim] RBAC binding (not found)")
+
+    # Delete OAuthClient (cluster-scoped, no namespace)
+    deleted = cluster.delete_resource("oauthclient", "kubosun-console")
+    if deleted:
+        console.print(f"  [red]Deleted[/red] OAuthClient")
+    else:
+        console.print(f"  [dim]Skipped[/dim] OAuthClient (not found)")
+
+    # Delete namespace if requested
+    if delete_namespace:
+        try:
+            cluster.run_oc(["delete", "project", namespace])
+            console.print(f"  [red]Deleted[/red] namespace {namespace}")
+        except subprocess.CalledProcessError:
+            console.print(f"  [dim]Skipped[/dim] namespace (not found)")
+
+    console.print()
+    console.print("[bold green]Destroy complete.[/bold green]")
+
+
 if __name__ == "__main__":
     app()

@@ -42,6 +42,21 @@ kubosun status
 
 Shows pods, route URL, and health check.
 
+### Destroy deployment
+
+```bash
+# Interactive confirmation
+kubosun destroy
+
+# Skip confirmation
+kubosun destroy --yes
+
+# Also delete the namespace
+kubosun destroy --yes --delete-namespace
+```
+
+Removes all Kubosun resources: deployments, services, builds, secrets, route, OAuthClient, and RBAC bindings.
+
 ## Options
 
 All commands accept `--namespace` (default: `kubosun`):

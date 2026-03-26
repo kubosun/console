@@ -116,6 +116,18 @@ def get_route_host(name: str, namespace: str) -> str:
     ])
 
 
+def delete_resource(kind: str, name: str, namespace: str | None = None) -> bool:
+    """Delete a resource, returning True if deleted, False if not found."""
+    args = ["delete", kind, name, "--ignore-not-found"]
+    if namespace:
+        args.extend(["-n", namespace])
+    try:
+        output = run_oc(args)
+        return "deleted" in output.lower()
+    except subprocess.CalledProcessError:
+        return False
+
+
 def get_pods(namespace: str) -> list[dict]:
     """Get pod status in a namespace."""
     output = run_oc([
