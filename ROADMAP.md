@@ -14,7 +14,7 @@ A Kubernetes console where:
 
 > Get a running app with all infrastructure in place. No features yet — just the harness.
 
-- [ ] Next.js 15 app (App Router, TypeScript strict, PatternFly 6)
+- [ ] Next.js 15 app (App Router, TypeScript strict, shadcn/ui + Tailwind CSS)
 - [ ] Python FastAPI backend (async, Pydantic, kubernetes-client)
 - [ ] Docker Compose for local development (frontend + backend)
 - [ ] Dockerfile for production (multi-stage)
@@ -133,7 +133,7 @@ A Kubernetes console where:
 | Backend framework | Python FastAPI | Async + native Anthropic SDK |
 | State (server) | TanStack React Query | Automatic caching, SSE subscriptions |
 | State (client) | Zustand | Minimal boilerplate |
-| Design system | PatternFly 6 | K8s/OpenShift standard |
+| Design system | shadcn/ui + Tailwind CSS | K8s/OpenShift standard |
 | Real-time | SSE (not WebSocket) | Simpler proxying, auto-reconnect |
 | AI | Anthropic Claude (tool use) | Best tool-use support |
 | Testing | Vitest + Playwright + pytest | Fast, modern, reliable |

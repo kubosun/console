@@ -2,7 +2,7 @@
 
 AI-native Kubernetes/OpenShift management console.
 
-- **Frontend**: Next.js 15 (App Router) + TypeScript + PatternFly 6
+- **Frontend**: Next.js 15 (App Router) + TypeScript + shadcn/ui + Tailwind CSS
 - **Backend**: Python FastAPI + kubernetes-client + Anthropic SDK
 - **AI**: Claude-powered agent for cluster management via natural language
 

@@ -6,7 +6,7 @@ AI-native Kubernetes console built with Next.js (frontend) + Python FastAPI (bac
 
 ```
 kubosun-console/
-├── frontend/              # Next.js 15 (App Router, TypeScript strict, PatternFly 6)
+├── frontend/              # Next.js 15 (App Router, TypeScript strict, shadcn/ui + Tailwind)
 │   ├── src/app/           #   File-based routes
 │   ├── src/components/    #   React components
 │   ├── src/hooks/         #   Custom React hooks
@@ -51,7 +51,8 @@ docker compose watch                # Start with hot reload
 - **One component per file**: Name file same as component (PascalCase)
 - **Hooks in `src/hooks/`**: Prefix with `use` (e.g., `useK8sResource.ts`)
 - **No barrel imports**: Import from specific file paths, never from `index.ts`
-- **PatternFly first**: Use PatternFly components before writing custom ones
+- **shadcn/ui first**: Use existing `src/components/ui/` components before writing custom ones
+- **Tailwind CSS**: Style with utility classes, use `cn()` from `@/lib/utils` for conditional classes
 - **Tests co-located**: `Component.test.tsx` next to `Component.tsx`
 - **Strict TypeScript**: All code must pass `tsc --noEmit` with strict mode
 
@@ -94,8 +95,8 @@ docker compose watch                # Start with hot reload
 ## Do NOT
 
 - Import from barrel/index files (causes circular deps and slow builds)
-- Create new shared components without checking PatternFly first
+- Create new shared components without checking shadcn/ui first
 - Skip TypeScript types or use `any`
 - Hardcode K8s API URLs (use models and the proxy)
 - Add features beyond what was asked for
-- Write custom CSS when PatternFly has a component for it
+- Write custom CSS when Tailwind utilities or shadcn/ui components can do the job

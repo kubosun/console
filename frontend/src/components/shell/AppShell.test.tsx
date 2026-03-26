@@ -27,9 +27,21 @@ describe('AppShell', () => {
         <div>Content</div>
       </AppShell>,
     );
-    expect(screen.getAllByText('Overview').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Workloads').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Networking').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Storage').length).toBeGreaterThan(0);
+    const navButtons = screen.getAllByRole('button');
+    const navLabels = navButtons.map((btn) => btn.textContent?.trim());
+    expect(navLabels).toContain('Overview');
+    expect(navLabels).toContain('Workloads');
+    expect(navLabels).toContain('Networking');
+    expect(navLabels).toContain('Storage');
+  });
+
+  it('renders sidebar toggle button', () => {
+    render(
+      <AppShell>
+        <div>Content</div>
+      </AppShell>,
+    );
+    const toggleButtons = screen.getAllByLabelText('Toggle sidebar');
+    expect(toggleButtons.length).toBeGreaterThan(0);
   });
 });
