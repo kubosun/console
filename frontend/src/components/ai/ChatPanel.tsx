@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Bot, Send, X, Loader2, Wrench } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '@/lib/utils';
 import { useAIAgent } from '@/hooks/useAIAgent';
 
@@ -81,7 +83,15 @@ export function ChatPanel() {
                 : 'bg-muted mr-8',
             )}
           >
-            <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+            {msg.role === 'user' ? (
+              <p className="whitespace-pre-wrap">{msg.content}</p>
+            ) : (
+              <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none [&_pre]:bg-background/50 [&_pre]:rounded [&_pre]:p-2 [&_pre]:text-xs [&_code]:text-xs [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:my-1 [&_h2]:my-1 [&_h3]:my-1">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {msg.content}
+                </ReactMarkdown>
+              </div>
+            )}
           </div>
         ))}
 
