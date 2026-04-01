@@ -20,7 +20,7 @@ spec:
       serviceAccountName: kubosun
       containers:
         - name: backend
-          image: kubosun/backend:latest
+          image: image-registry.openshift-image-registry.svc:5000/kubosun/kubosun-backend:latest
           ports:
             - containerPort: 8000
           env:
@@ -31,7 +31,7 @@ spec:
             - name: KUBOSUN_OAUTH_PROVIDER
               value: "openshift"
             - name: KUBOSUN_CORS_ORIGINS
-              value: '["https://kubosun.example.com"]'
+              value: '["https://kubosun.example.com"]'  # UPDATE: replace with actual route URL
           envFrom:
             - secretRef:
                 name: kubosun-secrets
@@ -76,7 +76,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: kubosun/frontend:latest
+          image: image-registry.openshift-image-registry.svc:5000/kubosun/kubosun-frontend:latest
           ports:
             - containerPort: 3000
           env:

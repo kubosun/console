@@ -35,6 +35,22 @@ metadata:
   labels:
     app.kubernetes.io/name: kubosun
 ---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kubosun
+  labels:
+    app.kubernetes.io/name: kubosun
+spec:
+  to:
+    kind: Service
+    name: kubosun-frontend
+  port:
+    targetPort: 3000
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
 apiVersion: v1
 kind: Secret
 metadata:
@@ -45,5 +61,5 @@ stringData:
   KUBOSUN_SESSION_SECRET: "REPLACE_ME"
   KUBOSUN_OAUTH_CLIENT_ID: "kubosun-console"
   KUBOSUN_OAUTH_CLIENT_SECRET: "REPLACE_ME"
-  KUBOSUN_OAUTH_ISSUER_URL: "https://oauth.cluster.example.com"
-  KUBOSUN_OAUTH_REDIRECT_URI: "https://kubosun.example.com/auth/callback"
+  KUBOSUN_OAUTH_ISSUER_URL: "https://oauth.cluster.example.com"  # UPDATE: replace with actual OAuth issuer
+  KUBOSUN_OAUTH_REDIRECT_URI: "https://kubosun.example.com/auth/callback"  # UPDATE: replace with actual route URL
