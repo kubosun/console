@@ -1,5 +1,6 @@
 """OAuth2/OIDC authentication endpoints."""
 
+import hashlib
 import secrets
 
 import httpx
@@ -11,6 +12,7 @@ from app.services.session import (
     COOKIE_NAME,
     create_session,
     get_user_info,
+    get_user_token,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -107,8 +109,20 @@ async def callback(code: str, state: str):
 
 
 @router.post("/logout")
-async def logout():
-    """Clear session cookie."""
+async def logout(request: Request):
+    """Revoke OAuth token and clear session cookie."""
+    cookie = request.cookies.get(COOKIE_NAME)
+    if cookie:
+        token = get_user_token(cookie)
+        if token and settings.oauth_provider == "openshift":
+            # Delete the OAuthAccessToken to prevent auto-re-login
+            url = f"{settings.k8s_api_server}/apis/oauth.openshift.io/v1/oauthaccesstokens/sha256~{_sha256(token)}"
+            async with httpx.AsyncClient(verify=False) as client:
+                await client.delete(
+                    url,
+                    headers={"Authorization": f"Bearer {token}"},
+                )
+
     response = JSONResponse(content={"status": "logged out"})
     response.delete_cookie(
         COOKIE_NAME,
@@ -167,6 +181,14 @@ async def _get_user_info(access_token: str) -> dict[str, str]:
             }
 
     return {"name": "unknown", "uid": "", "email": ""}
+
+
+def _sha256(value: str) -> str:
+    """Return the URL-safe base64-encoded SHA-256 hash (no padding)."""
+    import base64
+
+    digest = hashlib.sha256(value.encode()).digest()
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
 
 
 async def _discover_endpoint(key: str) -> str:
