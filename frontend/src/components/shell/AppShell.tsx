@@ -375,7 +375,7 @@ function UserMenu() {
     try {
       await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
     } finally {
-      window.location.href = '/auth/login';
+      window.location.href = '/logged-out';
     }
   };
 
