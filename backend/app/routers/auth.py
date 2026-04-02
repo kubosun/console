@@ -110,7 +110,12 @@ async def callback(code: str, state: str):
 async def logout():
     """Clear session cookie."""
     response = JSONResponse(content={"status": "logged out"})
-    response.delete_cookie(COOKIE_NAME)
+    response.delete_cookie(
+        COOKIE_NAME,
+        httponly=True,
+        samesite="lax",
+        secure=not settings.debug,
+    )
     return response
 
 
