@@ -64,7 +64,7 @@ def setup(
 
     # 2. Get cluster domain for OAuth
     apps_domain = cluster.get_apps_domain()
-    oauth_host = api_server.replace("https://api.", "https://oauth.").rstrip("/")
+    oauth_host = cluster.get_oauth_issuer(api_server)
     route_host = f"kubosun-{namespace}.{apps_domain}"
     route_url = f"https://{route_host}"
     console.print(f"Apps domain: [cyan]{apps_domain}[/cyan]")

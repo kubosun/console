@@ -45,6 +45,28 @@ def get_api_server() -> str:
     return run_oc(["whoami", "--show-server"])
 
 
+def get_oauth_issuer(api_server: str) -> str:
+    """Discover the OAuth issuer URL from the API server's well-known endpoint.
+
+    On HyperShift/ROSA clusters, the OAuth server runs on the management plane
+    at a different host than the API server.
+    """
+    import urllib.request
+    import ssl
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    url = f"{api_server}/.well-known/oauth-authorization-server"
+    try:
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, context=ctx, timeout=10) as resp:
+            data = json.loads(resp.read())
+            return data.get("issuer", api_server)
+    except Exception:
+        return api_server
+
+
 def get_apps_domain() -> str:
     """Get the cluster's apps domain for routes."""
     try:

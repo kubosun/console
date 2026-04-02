@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -348,27 +348,65 @@ function ThemeToggle() {
 
 function UserMenu() {
   const { data } = useUser();
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (!data?.authenticated) return null;
 
+  const name = data.user?.name ?? 'User';
+  const email = data.user?.email ?? '';
+  const initials = name
+    .split(/[\s:]+/)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? '')
+    .join('');
+
   const handleLogout = async () => {
-    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
-    window.location.href = '/auth/login';
+    try {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+    } finally {
+      window.location.href = '/auth/login';
+    }
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <User className="h-4 w-4" />
-        <span>{data.user?.name ?? 'User'}</span>
-      </div>
+    <div ref={ref} className="relative">
       <button
-        onClick={handleLogout}
-        className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-        aria-label="Logout"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+        aria-label="User menu"
       >
-        <LogOut className="h-4 w-4" />
+        {initials || <User className="h-4 w-4" />}
       </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-md border bg-popover shadow-lg">
+          <div className="px-3 py-3">
+            <p className="text-sm font-medium">{name}</p>
+            {email && email !== name && (
+              <p className="text-xs text-muted-foreground">{email}</p>
+            )}
+          </div>
+          <div className="border-t" />
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            Log out
+          </button>
+        </div>
+      )}
     </div>
   );
 }
